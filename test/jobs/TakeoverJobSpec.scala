@@ -26,7 +26,7 @@ import org.scalatestplus.play.PlaySpec
 import play.api.Configuration
 import play.api.test.Helpers._
 import repositories._
-import services.admin.{AdminService, AdminServiceImpl}
+import services.admin.AdminServiceImpl
 import services.{MetricsService, TakeoverDetailsService}
 import utils.Logging
 
@@ -100,7 +100,6 @@ class TakeoverJobSpec extends PlaySpec with MockitoSugar with Logging with Event
         implicit val ec: ExecutionContext                              = global
         override val takeoverDetailsService: TakeoverDetailsService    = mockTakeoverDetailsService
         override val metricsService: MetricsService                    = mockMetricsService
-        override val adminService: AdminService                        = mockAdminService
         override val ctRepo: CorporationTaxRegistrationMongoRepository = mockCTRepository
 
         override def runEverythingOnStartUp(): Future[Unit] = Future.successful(())

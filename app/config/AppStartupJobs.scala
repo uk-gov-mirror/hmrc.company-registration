@@ -20,7 +20,6 @@ import models.TakeoverDetails
 import org.apache.pekko.actor.ActorSystem
 import play.api.Configuration
 import repositories.CorporationTaxRegistrationMongoRepository
-import services.admin.AdminService
 import services.{MetricsService, TakeoverDetailsService}
 import utils.Logging
 
@@ -38,8 +37,7 @@ class Startup @Inject() (appStartupJobs: AppStartupJobs, actorSystem: ActorSyste
 class AppStartupJobsImpl @Inject() (val config: Configuration,
                                     val ctRepo: CorporationTaxRegistrationMongoRepository,
                                     val takeoverDetailsService: TakeoverDetailsService,
-                                    val metricsService: MetricsService,
-                                    val adminService: AdminService)(implicit val ec: ExecutionContext)
+                                    val metricsService: MetricsService)(implicit val ec: ExecutionContext)
     extends AppStartupJobs
 
 trait AppStartupJobs extends Logging {
@@ -49,7 +47,6 @@ trait AppStartupJobs extends Logging {
   val ctRepo: CorporationTaxRegistrationMongoRepository
   val takeoverDetailsService: TakeoverDetailsService
   val metricsService: MetricsService
-  val adminService: AdminService
 
   private def startupStats: Future[Unit] =
     ctRepo.getRegistrationStats map { stats =>
@@ -116,12 +113,6 @@ trait AppStartupJobs extends Logging {
   def runEverythingOnStartUp(): Future[Unit] = {
     logger.info("[runEverythingOnStartUp] Running Startup Jobs")
     lazy val regId = config.get[String]("companyNameRegID")
-    logger.info("[runEverythingOnStartUp] Get details PRE-update:")
-    getCTCompanyName(regId)
-    adminService
-      .updateTransactionId("089-838162", "099-584905")
-      .map(result => logger.info(s"[runEverythingOnStartUp] Was update TxnID successful? - $result"))
-    logger.info("[runEverythingOnStartUp] Get details POST-update:")
     getCTCompanyName(regId)
 
     lazy val base64TakeoverRegIds = config.get[String]("list-of-takeover-regids")
