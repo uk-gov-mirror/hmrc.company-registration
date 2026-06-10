@@ -44,7 +44,7 @@ class ProcessIncorporationServiceSpec extends PlaySpec with MockitoSugar with Co
   val mockIncorporationCheckAPIConnector: IncorporationCheckAPIConnector = mock[IncorporationCheckAPIConnector]
   val mockCTRepository: CorporationTaxRegistrationMongoRepository = mock[CorporationTaxRegistrationMongoRepository]
   val mockAccountService: AccountingDetailsService = mock[AccountingDetailsService]
-  val mockDesConnector: DesConnector = mock[DesConnector]
+  val mockSubmissionEventService: SubmissionEventService = mock[SubmissionEventService]
   val mockBRConnector: BusinessRegistrationConnector = mock[BusinessRegistrationConnector]
   val mockAuthConnector: AuthConnector = mock[AuthConnector]
   val mockAuditService: AuditService = mock[AuditService]
@@ -59,7 +59,7 @@ class ProcessIncorporationServiceSpec extends PlaySpec with MockitoSugar with Co
     mockAuditService,
     mockIncorporationCheckAPIConnector,
     mockCTRepository,
-    mockDesConnector,
+    mockSubmissionEventService,
     mockBRConnector,
     mockSendEmailService,
     mockAccountService
@@ -70,7 +70,7 @@ class ProcessIncorporationServiceSpec extends PlaySpec with MockitoSugar with Co
     val incorporationCheckAPIConnector: IncorporationCheckAPIConnector = mockIncorporationCheckAPIConnector
     val ctRepository: CorporationTaxRegistrationMongoRepository = mockCTRepository
     val accountingService: AccountingDetailsService = mockAccountService
-    val desConnector: DesConnector = mockDesConnector
+    val submissionEventService: SubmissionEventService = mockSubmissionEventService
     val brConnector: BusinessRegistrationConnector = mockBRConnector
     val auditService: AuditService = mockAuditService
     val microserviceAuthConnector: AuthConnector = mockAuthConnector
@@ -105,8 +105,11 @@ class ProcessIncorporationServiceSpec extends PlaySpec with MockitoSugar with Co
   val testAckRef: String = UUID.randomUUID.toString
   val testRegId: String = UUID.randomUUID.toString
   val transId: String = UUID.randomUUID().toString
-  val validCR: CorporationTaxRegistration = validHeldCTRegWithData(ackRef = Some(testAckRef)).copy(
-    accountsPreparation = Some(AccountPrepDetails(AccountPrepDetails.COMPANY_DEFINED, Some(date("2017-01-01")))), verifiedEmail = Some(Email("testemail.com", "", linkSent = true, verified = true, returnLinkEmailSent = true))
+  val validCR: CorporationTaxRegistration = validHeldCTRegWithData(ackRef = Some(testAckRef))
+    .copy(
+      accountsPreparation = Some(AccountPrepDetails(AccountPrepDetails.COMPANY_DEFINED, Some(date("2017-01-01")))),
+      verifiedEmail = Some(Email("testemail.com", "", linkSent = true, verified = true, returnLinkEmailSent = true)
+      )
   )
 
   import models.RegistrationStatus._
@@ -292,14 +295,13 @@ class ProcessIncorporationServiceSpec extends PlaySpec with MockitoSugar with Co
 
   "updateSubmission" must {
     trait SetupNoProcess {
-      object Service extends mockService {
-        implicit val hc: HeaderCarrier = new HeaderCarrier()
+      object Service extends mockService {mockAccountService
         implicit val ec: ExecutionContext = global
 
         override def updateHeldSubmission(item: IncorpUpdate, ctReg: CorporationTaxRegistration, journeyId: String, isAdmin: Boolean = false)(implicit hc: HeaderCarrier): Future[Boolean] = Future.successful(true)
       }
     }
-    "return true for a DES ready submission" in new SetupNoProcess {
+    "return true for a DES/HIP ready submission" in new SetupNoProcess {
       when(mockCTRepository.findOneBySelector(mockCTRepository.transIdSelector(ArgumentMatchers.eq(transId))))
         .thenReturn(Future.successful(Some(validCR)))
 
@@ -340,7 +342,8 @@ class ProcessIncorporationServiceSpec extends PlaySpec with MockitoSugar with Co
     class SetupBoolean(boole: Boolean) {
       object Service extends mockService {
         implicit val ec: ExecutionContext = global
-        override def updateSubmissionWithIncorporation(item: IncorpUpdate, ctReg: CorporationTaxRegistration, isAdmin: Boolean = false)(implicit hc: HeaderCarrier): Future[Boolean] = Future.successful(boole)
+        override def updateSubmissionWithIncorporation(item: IncorpUpdate, ctReg: CorporationTaxRegistration, isAdmin: Boolean = false)(
+          implicit hc: HeaderCarrier): Future[Boolean] = Future.successful(boole)
       }
     }
 
@@ -382,7 +385,7 @@ class ProcessIncorporationServiceSpec extends PlaySpec with MockitoSugar with Co
       )(ArgumentMatchers.any[HeaderCarrier](), ArgumentMatchers.eq(FailedIncorporationAuditEventDetail.format)))
         .thenReturn(Future.successful(Success))
 
-      when(mockDesConnector.topUpCTSubmission(ArgumentMatchers.any(), ArgumentMatchers.any(), ArgumentMatchers.any(), ArgumentMatchers.any())(ArgumentMatchers.any()))
+      when(mockSubmissionEventService.topUpCTSubmission(ArgumentMatchers.any(), ArgumentMatchers.any(), ArgumentMatchers.any())(ArgumentMatchers.any()))
         .thenReturn(Future.successful(HttpResponse(200, "")))
 
       when(mockCTRepository.removeTaxRegistrationById(ArgumentMatchers.eq(validCR.registrationID)))
@@ -427,8 +430,8 @@ class ProcessIncorporationServiceSpec extends PlaySpec with MockitoSugar with Co
         ArgumentMatchers.any()
       )(ArgumentMatchers.any[HeaderCarrier](), ArgumentMatchers.eq(FailedIncorporationAuditEventDetail.format)))
         .thenReturn(Future.successful(Success))
-      when(mockDesConnector.topUpCTSubmission(ArgumentMatchers.any(), ArgumentMatchers.any(), ArgumentMatchers.any(), ArgumentMatchers.any())(ArgumentMatchers.any()))
-        .thenReturn(Future.failed(new InternalServerException("DES returned a 500")))
+      when(mockSubmissionEventService.topUpCTSubmission(ArgumentMatchers.any(), ArgumentMatchers.any(), ArgumentMatchers.any())(ArgumentMatchers.any()))
+        .thenReturn(Future.failed(new InternalServerException("DES/HIP returned a 500")))
       when(mockCTRepository.removeTaxRegistrationById(ArgumentMatchers.eq(validCR.registrationID)))
         .thenReturn(Future.successful(true))
       when(mockBRConnector.removeMetadata(ArgumentMatchers.eq(validCR.registrationID))(ArgumentMatchers.any()))

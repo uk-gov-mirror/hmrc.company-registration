@@ -34,7 +34,7 @@ class ProcessIncorporationsController @Inject()(val processIncorporationService:
                                                )(implicit val ec: ExecutionContext) extends BackendController(controllerComponents) with Logging {
 
   private def logFailedTopup(txId: String, method: String): Unit =
-    logger.error(s"[$method] FAILED_DES_TOPUP - Topup failed for transaction ID: $txId")
+    logger.error(s"[$method] FAILED_DES/HIP_TOPUP - Topup failed for transaction ID: $txId")
 
   def processIncorporationNotification: Action[JsValue] = Action.async[JsValue](parse.json) {
     implicit request =>

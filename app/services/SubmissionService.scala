@@ -18,7 +18,7 @@ package services
 
 import audit.SubmissionEventDetail
 import cats.implicits._
-import connectors.{BusinessRegistrationConnector, BusinessRegistrationSuccessResponse, DesConnector, IncorporationInformationConnector}
+import connectors.{BusinessRegistrationConnector, BusinessRegistrationSuccessResponse, IncorporationInformationConnector}
 import helpers.DateHelper
 import models.RegistrationStatus.{ACKNOWLEDGED, DRAFT, LOCKED, SUBMITTED}
 import models._
@@ -37,7 +37,7 @@ import scala.concurrent.{ExecutionContext, Future}
 
 class SubmissionServiceImpl @Inject()(val repositories: Repositories,
                                       val incorpInfoConnector: IncorporationInformationConnector,
-                                      val desConnector: DesConnector,
+                                      val submissionEventService: SubmissionEventService,
                                       val brConnector: BusinessRegistrationConnector,
                                       val corpTaxRegService: CorporationTaxRegistrationService,
                                       val auditService: AuditService
@@ -54,7 +54,7 @@ trait SubmissionService extends DateHelper with Logging {
   val cTRegistrationRepository: CorporationTaxRegistrationMongoRepository
   val sequenceRepository: SequenceMongoRepository
   val incorpInfoConnector: IncorporationInformationConnector
-  val desConnector: DesConnector
+  val submissionEventService: SubmissionEventService
   val auditService: AuditService
   val brConnector: BusinessRegistrationConnector
   val corpTaxRegService: CorporationTaxRegistrationService
@@ -164,7 +164,7 @@ trait SubmissionService extends DateHelper with Logging {
       case Some(sesID) => (sesID.value, authProvId)
       case None => ctData.sessionIdentifiers match {
         case Some(sessionIdentifiers) => (sessionIdentifiers.sessionId, sessionIdentifiers.credId)
-        case None => throw new RuntimeException(s"[buildPartialDesSubmission] No session identifiers available for DES submission")
+        case None => throw new RuntimeException(s"[buildPartialDesSubmission] No session identifiers available for DES/HIP submission")
       }
     }
 
@@ -242,7 +242,7 @@ trait SubmissionService extends DateHelper with Logging {
 
   private[services] def submitPartialToDES(regId: String, ackRef: String, partialSubmission: JsObject, authProvId: String)
                                           (implicit hc: HeaderCarrier): Future[HttpResponse] = {
-    desConnector.ctSubmission(ackRef, partialSubmission, regId) recoverWith {
+    submissionEventService.ctSubmission(ackRef, partialSubmission, regId) recoverWith {
       case e =>
         hc.sessionId match {
           case Some(xSesID) =>
@@ -259,7 +259,7 @@ trait SubmissionService extends DateHelper with Logging {
                                                   (implicit hc: HeaderCarrier, req: Request[AnyContent]): Future[AuditResult] = {
     import PPOB.RO
 
-    val ppob = doc.companyDetails.getOrElse(throw new RuntimeException(s"Could not retrieve Company Registration after DES Submission for $regId")).ppob
+    val ppob = doc.companyDetails.getOrElse(throw new RuntimeException(s"Could not retrieve Company Registration after DES/HIP Submission for $regId")).ppob
     val (txID, uprn) = (ppob.addressType, ppob.address) match {
       case (RO, _) => (None, None)
       case (_, Some(address)) => (Some(address.txid), address.uprn)

@@ -157,7 +157,7 @@ class ProcessIncorporationsControllerSpec extends PlaySpec with MockitoSugar wit
         intercept[RuntimeException](await(call(Controller.processIncorporationNotification, request)))
         eventually {
           logEvents.size mustBe 1
-          logEvents.head.getMessage mustBe "[Controller][processIncorporationNotification] FAILED_DES_TOPUP - Topup failed for transaction ID: trans-12345"
+          logEvents.head.getMessage mustBe "[Controller][processIncorporationNotification] FAILED_DES/HIP_TOPUP - Topup failed for transaction ID: trans-12345"
         }
       }
     }

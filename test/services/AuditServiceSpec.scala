@@ -72,7 +72,7 @@ class AuditServiceSpec extends PlaySpec with MockitoSugar with DefaultAwaitTimeo
 
   "ctRegSubmissionFromJson" must {
     "construct a CTRegistrationSubmissionAuditEventDetails with ackRef and processingDate defined" when {
-      "given a successful DES Response" in new Setup {
+      "given a successful DES/HIP Response" in new Setup {
         val desResponse: JsObject = Json.obj(
           "processingDate" -> "testDate",
           "acknowledgementReference" -> "testAckRef"
@@ -87,7 +87,7 @@ class AuditServiceSpec extends PlaySpec with MockitoSugar with DefaultAwaitTimeo
     }
 
     "construct a CTRegistrationSubmissionAuditEventDetails with only the reason defined" when {
-      "given a failed DES Response" in new Setup {
+      "given a failed DES/HIP Response" in new Setup {
         val desResponse: JsObject = Json.obj(
           "reason" -> "testReason"
         )

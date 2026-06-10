@@ -56,7 +56,7 @@ class SubmissionServiceSpec extends BaseSpec with AuthorisationMocks with Corpor
   val mockSequenceRepo: SequenceMongoRepository = mock[SequenceMongoRepository]
   val mockAuditService: AuditService = mock[AuditService]
   val mockIIConnector: IncorporationInformationConnector = mock[IncorporationInformationConnector]
-  val mockDesConnector: DesConnector = mock[DesConnector]
+  val mockSubmissionEventService: SubmissionEventService = mock[SubmissionEventService]
   val mockCorpTaxService: CorporationTaxRegistrationService = mock[CorporationTaxRegistrationService]
 
   val dateTime: Instant = Instant.parse("2016-10-27T16:28:59.000Z")
@@ -69,7 +69,7 @@ class SubmissionServiceSpec extends BaseSpec with AuthorisationMocks with Corpor
   override def beforeEach(): Unit = {
     reset(
       mockCorpTaxRepo, mockSequenceMongoRepository, mockAuthConnector, mockBRConnector,
-      mockIncorporationCheckAPIConnector, mockAuditService, mockIIConnector, mockDesConnector
+      mockIncorporationCheckAPIConnector, mockAuditService, mockIIConnector, mockSubmissionEventService
     )
   }
 
@@ -78,7 +78,7 @@ class SubmissionServiceSpec extends BaseSpec with AuthorisationMocks with Corpor
       override val cTRegistrationRepository: CorporationTaxRegistrationMongoRepository = mockCorpTaxRepo
       override val sequenceRepository: SequenceMongoRepository = mockSequenceMongoRepository
       override val incorpInfoConnector: IncorporationInformationConnector = mockIIConnector
-      override val desConnector: DesConnector = mockDesConnector
+      override val submissionEventService: SubmissionEventService = mockSubmissionEventService
       override val auditService: AuditService = mockAuditService
       override val brConnector: BusinessRegistrationConnector = mockBRConnector
       override val corpTaxRegService: CorporationTaxRegistrationService = mockCorpTaxService
@@ -177,7 +177,7 @@ class SubmissionServiceSpec extends BaseSpec with AuthorisationMocks with Corpor
       when(mockIIConnector.registerInterest(eqTo(regId), any(), any())(any(), any()))
         .thenReturn(Future.successful(true))
 
-      when(mockDesConnector.ctSubmission(any(), any(), eqTo(regId), any())(any()))
+      when(mockSubmissionEventService.ctSubmission(any(), any(), eqTo(regId))(any()))
         .thenReturn(Future.successful(HttpResponse(202, "")))
 
       when(mockCorpTaxRepo.retrieveCompanyDetails(eqTo(regId)))
@@ -284,37 +284,37 @@ class SubmissionServiceSpec extends BaseSpec with AuthorisationMocks with Corpor
 
     val partialSubmission: JsObject = partialDesSubmission(ackRef)
 
-    "send a partial submission to DES when the ETMP feature flag is enabled and return a HeldSubmissionData object when the connector returns a 200 HttpResponse" in new Setup {
-      when(mockDesConnector.ctSubmission(eqTo(ackRef), eqTo(partialSubmission), eqTo(regId), any())(any()))
+    "send a partial submission to DES/HIP when the ETMP feature flag is enabled and return a HeldSubmissionData object when the connector returns a 200 HttpResponse" in new Setup {
+      when(mockSubmissionEventService.ctSubmission(eqTo(ackRef), eqTo(partialSubmission), eqTo(regId))(any()))
         .thenReturn(Future.successful(HttpResponse(200, "")))
 
       val result: HttpResponse = await(service.submitPartialToDES(regId, ackRef, partialSubmission, authProviderId))
 
       result.status mustBe 200
 
-      verify(mockDesConnector, times(1)).ctSubmission(eqTo(ackRef), eqTo(partialSubmission), eqTo(regId), any())(any())
+      verify(mockSubmissionEventService, times(1)).ctSubmission(eqTo(ackRef), eqTo(partialSubmission), eqTo(regId))(any())
     }
 
-    "throw a Runtime exception, save sessionID/credID when the ETMP feature flag is enabled and submission DES to fails on a 400" in new Setup {
-      when(mockDesConnector.ctSubmission(eqTo(ackRef), eqTo(partialSubmission), eqTo(regId), any())(any()))
+    "throw a Runtime exception, save sessionID/credID when the ETMP feature flag is enabled and submission DES/HIP to fails on a 400" in new Setup {
+      when(mockSubmissionEventService.ctSubmission(eqTo(ackRef), eqTo(partialSubmission), eqTo(regId))(any()))
         .thenReturn(Future.failed(UpstreamErrorResponse("fail", 400, 400)))
       when(mockCorpTaxRepo.storeSessionIdentifiers(eqTo(regId), any(), any()))
         .thenReturn(Future.successful(true))
 
       intercept[UpstreamErrorResponse](await(service.submitPartialToDES(regId, ackRef, partialSubmission, authProviderId)))
 
-      verify(mockDesConnector, times(1)).ctSubmission(eqTo(ackRef), eqTo(partialSubmission), eqTo(regId), any())(any())
+      verify(mockSubmissionEventService, times(1)).ctSubmission(eqTo(ackRef), eqTo(partialSubmission), eqTo(regId))(any())
     }
 
-    "throw a Runtime exception, save sessionID/credID when the ETMP feature flag is enabled and submission DES to fails on a 500" in new Setup {
-      when(mockDesConnector.ctSubmission(eqTo(ackRef), eqTo(partialSubmission), eqTo(regId), any())(any()))
+    "throw a Runtime exception, save sessionID/credID when the ETMP feature flag is enabled and submission DES/HIP to fails on a 500" in new Setup {
+      when(mockSubmissionEventService.ctSubmission(eqTo(ackRef), eqTo(partialSubmission), eqTo(regId))(any()))
         .thenReturn(Future.failed(UpstreamErrorResponse("fail", 500, 500)))
       when(mockCorpTaxRepo.storeSessionIdentifiers(eqTo(regId), any(), any()))
         .thenReturn(Future.successful(true))
 
       intercept[UpstreamErrorResponse](await(service.submitPartialToDES(regId, ackRef, partialSubmission, authProviderId)))
 
-      verify(mockDesConnector, times(1)).ctSubmission(eqTo(ackRef), eqTo(partialSubmission), eqTo(regId), any())(any())
+      verify(mockSubmissionEventService, times(1)).ctSubmission(eqTo(ackRef), eqTo(partialSubmission), eqTo(regId))(any())
     }
   }
 
@@ -350,7 +350,7 @@ class SubmissionServiceSpec extends BaseSpec with AuthorisationMocks with Corpor
     }
   }
 
-  "Build partial DES submission" must {
+  "Build partial DES/HIP submission" must {
 
     val registrationId = "testRegId"
     val ackRef = "testAckRef"
@@ -426,7 +426,7 @@ class SubmissionServiceSpec extends BaseSpec with AuthorisationMocks with Corpor
       tradingDetails = Some(TradingDetails("false"))
     )
 
-    "return a valid partial DES submission" in new Setup {
+    "return a valid partial DES/HIP submission" in new Setup {
       implicit val hc: HeaderCarrier = HeaderCarrier(sessionId = Some(SessionId("testSessionId")))
 
       val interimDesRegistration: InterimDesRegistration = InterimDesRegistration(
@@ -542,7 +542,7 @@ class SubmissionServiceSpec extends BaseSpec with AuthorisationMocks with Corpor
       )
     }
 
-    "return a valid partial DES submission if the sessionID is available in mongo" in new Setup {
+    "return a valid partial DES/HIP submission if the sessionID is available in mongo" in new Setup {
       implicit val hc: HeaderCarrier = HeaderCarrier()
 
       val interimDesRegistration: InterimDesRegistration = InterimDesRegistration(
@@ -567,7 +567,7 @@ class SubmissionServiceSpec extends BaseSpec with AuthorisationMocks with Corpor
       result.toString mustBe interimDesRegistration.toString
     }
 
-    "return a valid DES Submission if groups is provided but relief is false" in new Setup {
+    "return a valid DES/HIP Submission if groups is provided but relief is false" in new Setup {
       when(mockBRConnector.retrieveMetadataByRegId(ArgumentMatchers.any())(ArgumentMatchers.any()))
         .thenReturn(Future.successful(BusinessRegistrationSuccessResponse(businessRegistration)))
       when(mockCorpTaxRepo.findOneBySelector(mockCorpTaxRepo.regIDSelector(eqTo(registrationId))))
@@ -589,7 +589,7 @@ class SubmissionServiceSpec extends BaseSpec with AuthorisationMocks with Corpor
       )
     }
 
-    "return a valid DES submission if groups is provided but relief is false and data is provided - setting this data to None" in new Setup {
+    "return a valid DES/HIP submission if groups is provided but relief is false and data is provided - setting this data to None" in new Setup {
       when(mockBRConnector.retrieveMetadataByRegId(ArgumentMatchers.any())(ArgumentMatchers.any()))
         .thenReturn(Future.successful(BusinessRegistrationSuccessResponse(businessRegistration)))
       when(mockCorpTaxRepo.findOneBySelector(mockCorpTaxRepo.regIDSelector(eqTo(registrationId))))
@@ -817,7 +817,7 @@ class SubmissionServiceSpec extends BaseSpec with AuthorisationMocks with Corpor
 
 
 
-    "return a valid DES Submission if takeovers is false" in new Setup {
+    "return a valid DES/HIP Submission if takeovers is false" in new Setup {
       when(mockBRConnector.retrieveMetadataByRegId(ArgumentMatchers.any())(ArgumentMatchers.any()))
         .thenReturn(Future.successful(BusinessRegistrationSuccessResponse(businessRegistration)))
       when(mockCorpTaxRepo.findOneBySelector(mockCorpTaxRepo.regIDSelector(eqTo(registrationId))))
@@ -1030,7 +1030,7 @@ class SubmissionServiceSpec extends BaseSpec with AuthorisationMocks with Corpor
         .thenReturn(Future.successful(BusinessRegistrationSuccessResponse(businessRegistration)))
       when(mockCorpTaxRepo.findOneBySelector(ArgumentMatchers.any()))
         .thenReturn(Future.successful(Some(lockedSubmission)))
-      when(mockDesConnector.ctSubmission(any(), any(), any(), any())(any()))
+      when(mockSubmissionEventService.ctSubmission(any(), any(), any())(any()))
         .thenReturn(Future.successful(HttpResponse(200, "")))
       when(mockCorpTaxRepo.retrieveCompanyDetails(any()))
         .thenReturn(Future.successful(Some(companyDetails)))
@@ -1060,7 +1060,7 @@ class SubmissionServiceSpec extends BaseSpec with AuthorisationMocks with Corpor
         .thenReturn(Future.successful(BusinessRegistrationSuccessResponse(businessRegistration)))
       when(mockCorpTaxRepo.findOneBySelector(ArgumentMatchers.any()))
         .thenReturn(Future.successful(Some(lockedSubmission)))
-      when(mockDesConnector.ctSubmission(any(), any(), any(), any())(any()))
+      when(mockSubmissionEventService.ctSubmission(any(), any(), any())(any()))
         .thenReturn(Future.successful(HttpResponse(200, "")))
       when(mockCorpTaxRepo.retrieveCompanyDetails(any()))
         .thenReturn(Future.successful(Some(companyDetails)))
@@ -1107,7 +1107,7 @@ class SubmissionServiceSpec extends BaseSpec with AuthorisationMocks with Corpor
         .thenReturn(Future.successful(BusinessRegistrationSuccessResponse(businessRegistration)))
       when(mockCorpTaxRepo.findOneBySelector(ArgumentMatchers.any()))
         .thenReturn(Future.successful(Some(lockedSubmission)))
-      when(mockDesConnector.ctSubmission(any(), any(), any(), any())(any()))
+      when(mockSubmissionEventService.ctSubmission(any(), any(), any())(any()))
         .thenReturn(Future.successful(HttpResponse(200, "")))
       when(mockCorpTaxRepo.retrieveCompanyDetails(any()))
         .thenReturn(Future.successful(None))
@@ -1125,7 +1125,7 @@ class SubmissionServiceSpec extends BaseSpec with AuthorisationMocks with Corpor
         .thenReturn(Future.successful(BusinessRegistrationSuccessResponse(businessRegistration)))
       when(mockCorpTaxRepo.findOneBySelector(ArgumentMatchers.any()))
         .thenReturn(Future.successful(Some(lockedSubmission)))
-      when(mockDesConnector.ctSubmission(any(), any(), any(), any())(any()))
+      when(mockSubmissionEventService.ctSubmission(any(), any(), any())(any()))
         .thenReturn(Future.successful(HttpResponse(200, "")))
       when(mockCorpTaxRepo.retrieveCompanyDetails(any()))
         .thenReturn(Future.successful(Some(companyDetails)))

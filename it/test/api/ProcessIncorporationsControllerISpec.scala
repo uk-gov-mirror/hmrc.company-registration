@@ -245,7 +245,7 @@ class ProcessIncorporationsControllerISpec extends IntegrationSpecBase with Mong
     val processIncorpPath = "/process-incorp"
     val testIncorpDate = "2017-07-24"
 
-    "send a top up submission to DES with correct active date" when {
+    "send a top up submission to DES/HIP with correct active date" when {
       "user has selected a Future Date for Accounting Dates before the incorporation date" in new Setup {
 
         ctRepository.insert(heldRegistration)
@@ -622,7 +622,7 @@ class ProcessIncorporationsControllerISpec extends IntegrationSpecBase with Mong
       }
     }
 
-    "send a top-up submission to DES if a matching held registration exists and a held submission does not exist" in new Setup {
+    "send a top-up submission to DES/HIP if a matching held registration exists and a held submission does not exist" in new Setup {
 
       val jsonBodyFromII: String = jsonIncorpStatus(testIncorpDate)
 
@@ -641,7 +641,7 @@ class ProcessIncorporationsControllerISpec extends IntegrationSpecBase with Mong
       reg.status mustBe "submitted"
     }
 
-    "NOT send a top-up submission to DES if a matching registration exists as not held status" in new Setup {
+    "NOT send a top-up submission to DES/HIP if a matching registration exists as not held status" in new Setup {
 
       val jsonBodyFromII: String = jsonIncorpStatus(testIncorpDate)
 
@@ -655,7 +655,7 @@ class ProcessIncorporationsControllerISpec extends IntegrationSpecBase with Mong
       await(response).status mustBe 500
     }
 
-    "return a 502 if the top-up submission to DES fails, then return a 200 when retried and the submission to DES is successful" in new Setup {
+    "return a 502 if the top-up submission to DES/HIP fails, then return a 200 when retried and the submission to DES is successful" in new Setup {
 
       val jsonBodyFromII: String = jsonIncorpStatus(testIncorpDate)
 

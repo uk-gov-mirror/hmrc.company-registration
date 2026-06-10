@@ -17,7 +17,7 @@
 package services.admin
 
 import config.LangConstants
-import connectors.{BusinessRegistrationConnector, DesConnector, IncorporationInformationConnector}
+import connectors.{BusinessRegistrationConnector, IncorporationInformationConnector}
 import models._
 import org.mockito.ArgumentMatchers
 import org.mockito.ArgumentMatchers.any
@@ -31,7 +31,7 @@ import play.api.mvc.{AnyContent, Request}
 import play.api.test.FakeRequest
 import play.api.test.Helpers._
 import repositories.CorporationTaxRegistrationMongoRepository
-import services.{AuditService, FailedToDeleteSubmissionData}
+import services.{AuditService, FailedToDeleteSubmissionData, SubmissionEventService}
 import uk.gov.hmrc.http.{HeaderCarrier, HttpResponse, NotFoundException, UpstreamErrorResponse}
 import uk.gov.hmrc.mongo.lock.LockService
 import uk.gov.hmrc.play.audit.http.connector.AuditResult
@@ -46,7 +46,7 @@ class AdminServiceSpec extends PlaySpec with MockitoSugar with BeforeAndAfterEac
   val mockIncorpInfoConnector: IncorporationInformationConnector = mock[IncorporationInformationConnector]
   val mockCorpTaxRegistrationRepo: CorporationTaxRegistrationMongoRepository = mock[CorporationTaxRegistrationMongoRepository]
   val mockBusRegConnector: BusinessRegistrationConnector = mock[BusinessRegistrationConnector]
-  val mockDesConnector: DesConnector = mock[DesConnector]
+  val mockSubmissionEventService: SubmissionEventService = mock[SubmissionEventService]
   val mockLockService: LockService = mock[LockService]
 
   class Setup {
@@ -55,7 +55,7 @@ class AdminServiceSpec extends PlaySpec with MockitoSugar with BeforeAndAfterEac
       val incorpInfoConnector: IncorporationInformationConnector = mockIncorpInfoConnector
       val corpTaxRegRepo: CorporationTaxRegistrationMongoRepository = mockCorpTaxRegistrationRepo
       val brConnector: BusinessRegistrationConnector = mockBusRegConnector
-      val desConnector: DesConnector = mockDesConnector
+      val desConnector: SubmissionEventService = mockSubmissionEventService
       override val lockKeeper: LockService = mockLockService
       implicit val ec: ExecutionContext = global
       override val staleAmount: Int = 10
@@ -69,7 +69,7 @@ class AdminServiceSpec extends PlaySpec with MockitoSugar with BeforeAndAfterEac
     reset(mockAuditService)
     reset(mockBusRegConnector)
     reset(mockCorpTaxRegistrationRepo)
-    reset(mockDesConnector)
+    reset(mockSubmissionEventService)
     reset(mockIncorpInfoConnector)
     reset(mockLockService)
   }
@@ -425,7 +425,7 @@ class AdminServiceSpec extends PlaySpec with MockitoSugar with BeforeAndAfterEac
 
         when(mockIncorpInfoConnector.checkCompanyIncorporated(any())(any()))
           .thenReturn(Future.successful(None))
-        when(mockDesConnector.topUpCTSubmission(any(), any(), any(), any())(any()))
+        when(mockSubmissionEventService.topUpCTSubmission(any(), any(), any())(any()))
           .thenReturn(Future.successful(HttpResponse(200, "")))
         when(mockBusRegConnector.adminRemoveMetadata(any()))
           .thenReturn(Future.successful(true))
@@ -457,7 +457,7 @@ class AdminServiceSpec extends PlaySpec with MockitoSugar with BeforeAndAfterEac
 
         when(mockIncorpInfoConnector.checkCompanyIncorporated(any())(any()))
           .thenReturn(Future.successful(None))
-        when(mockDesConnector.topUpCTSubmission(any(), any(), any(), any())(any()))
+        when(mockSubmissionEventService.topUpCTSubmission(any(), any(), any())(any()))
           .thenReturn(Future.failed(UpstreamErrorResponse("test", 400, 400, Map())))
 
         await(service.processStaleDocument(confRefWithCRNExampleDoc)) mustBe false
@@ -467,7 +467,7 @@ class AdminServiceSpec extends PlaySpec with MockitoSugar with BeforeAndAfterEac
 
         when(mockIncorpInfoConnector.checkCompanyIncorporated(any())(any()))
           .thenReturn(Future.successful(None))
-        when(mockDesConnector.topUpCTSubmission(any(), any(), any(), any())(any()))
+        when(mockSubmissionEventService.topUpCTSubmission(any(), any(), any())(any()))
           .thenReturn(Future.successful(HttpResponse(200, "")))
         when(mockBusRegConnector.adminRemoveMetadata(any()))
           .thenReturn(Future.failed(new RuntimeException("failed to delete BR doc")))
@@ -479,7 +479,7 @@ class AdminServiceSpec extends PlaySpec with MockitoSugar with BeforeAndAfterEac
 
         when(mockIncorpInfoConnector.checkCompanyIncorporated(any())(any()))
           .thenReturn(Future.successful(None))
-        when(mockDesConnector.topUpCTSubmission(any(), any(), any(), any())(any()))
+        when(mockSubmissionEventService.topUpCTSubmission(any(), any(), any())(any()))
           .thenReturn(Future.successful(HttpResponse(200, "")))
         when(mockBusRegConnector.adminRemoveMetadata(any()))
           .thenReturn(Future.successful(true))

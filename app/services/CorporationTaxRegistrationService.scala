@@ -17,7 +17,7 @@
 package services
 
 import cats.implicits._
-import connectors.{BusinessRegistrationConnector, DesConnector, IncorporationCheckAPIConnector, IncorporationInformationConnector}
+import connectors.{BusinessRegistrationConnector, IncorporationCheckAPIConnector, IncorporationInformationConnector}
 import helpers.DateHelper
 import jobs.{LockResponse, MongoLocked, ScheduledService, UnlockingFailed}
 import models.des.BusinessAddress
@@ -40,7 +40,7 @@ import scala.util.{Success, Try}
 @Singleton
 class CorporationTaxRegistrationServiceImpl @Inject()(val submissionCheckAPIConnector: IncorporationCheckAPIConnector,
                                                       val brConnector: BusinessRegistrationConnector,
-                                                      val desConnector: DesConnector,
+                                                      val desConnector: SubmissionEventService,
                                                       val incorpInfoConnector: IncorporationInformationConnector,
                                                       val repositories: Repositories,
                                                       val auditConnector: AuditConnector,
@@ -70,7 +70,7 @@ trait CorporationTaxRegistrationService extends ScheduledService[Either[String, 
   val brConnector: BusinessRegistrationConnector
   val auditConnector: AuditConnector
   val incorpInfoConnector: IncorporationInformationConnector
-  val desConnector: DesConnector
+  val desConnector: SubmissionEventService
   val submissionCheckAPIConnector: IncorporationCheckAPIConnector
   val lockKeeper: LockService
 

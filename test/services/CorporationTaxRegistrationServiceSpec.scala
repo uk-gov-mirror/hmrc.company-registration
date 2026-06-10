@@ -52,7 +52,7 @@ class CorporationTaxRegistrationServiceSpec extends BaseSpec with AuthorisationM
   val mockBRConnector: BusinessRegistrationConnector = mock[BusinessRegistrationConnector]
   val mockAuditConnector: AuditConnector = mock[AuditConnector]
   val mockIIConnector: IncorporationInformationConnector = mock[IncorporationInformationConnector]
-  val mockDesConnector: DesConnector = mock[DesConnector]
+  val mockDesConnector: SubmissionEventService = mock[SubmissionEventService]
 
   val dateTime: Instant = Instant.parse("2016-10-27T16:28:59.000Z")
 
@@ -79,7 +79,7 @@ class CorporationTaxRegistrationServiceSpec extends BaseSpec with AuthorisationM
       val submissionCheckAPIConnector: IncorporationCheckAPIConnector = mockIncorporationCheckAPIConnector
       val auditConnector: AuditConnector = mockAuditConnector
       val incorpInfoConnector: IncorporationInformationConnector = mockIIConnector
-      val desConnector: DesConnector = mockDesConnector
+      val desConnector: SubmissionEventService = mockDesConnector
       val instantNow: Instant = dateTime
       override val lockKeeper: LockService = mockLockService
       implicit val ec: ExecutionContext = global

@@ -247,7 +247,7 @@ class SubmissionControllerISpec extends IntegrationSpecBase with LoginStub with 
       ctRepository.findAll.head.confirmationReferences mustBe Some(confRefsWithPayment)
     }
 
-    "submit to DES" when {
+    "submit to DES/HIP" when {
       val businessRegistrationResponse = Json.obj(
         "registrationID" -> s"$regId",
         "formCreationTimestamp" -> "2017-08-09T11:48:20+01:00",
@@ -280,7 +280,7 @@ class SubmissionControllerISpec extends IntegrationSpecBase with LoginStub with 
         reg.status mustBe HELD
       }
 
-      "registration is in Draft status and update Confirmation References but DES submission failed 403 (old HO6)" in new Setup {
+      "registration is in Draft status and update Confirmation References but DES/HIP submission failed 403 (old HO6)" in new Setup {
         stubAuthorise(200, authorisedRetrievals)
 
         ctRepository.insert(draftRegistration)
@@ -304,7 +304,7 @@ class SubmissionControllerISpec extends IntegrationSpecBase with LoginStub with 
         reg.status mustBe RegistrationStatus.LOCKED
       }
 
-      "registration is in Draft status and update Confirmation References but DES submission failed 429 (old HO6)" in new Setup {
+      "registration is in Draft status and update Confirmation References but DES/HIP submission failed 429 (old HO6)" in new Setup {
         stubAuthorise(200, authorisedRetrievals)
 
         ctRepository.insert(draftRegistration)
@@ -963,7 +963,7 @@ class SubmissionControllerISpec extends IntegrationSpecBase with LoginStub with 
         res mustBe expectedJsonBody
       }
 
-      "registration is in Draft status and update Confirmation References with Ack Ref but DES submission FAILED 403 (new HO5-1)" in new Setup {
+      "registration is in Draft status and update Confirmation References with Ack Ref but DES/HIP submission FAILED 403 (new HO5-1)" in new Setup {
         stubAuthorise(200, authorisedRetrievals)
 
         val confRefsWithoutPayment: ConfirmationReferences = ConfirmationReferences(
@@ -994,7 +994,7 @@ class SubmissionControllerISpec extends IntegrationSpecBase with LoginStub with 
         reg.status mustBe RegistrationStatus.LOCKED
       }
 
-      "registration is in Draft status and update Confirmation References with Ack Ref but DES submission FAILED 429 (new HO5-1)" in new Setup {
+      "registration is in Draft status and update Confirmation References with Ack Ref but DES/HIP submission FAILED 429 (new HO5-1)" in new Setup {
         stubAuthorise(200, authorisedRetrievals)
 
         val confRefsWithoutPayment: ConfirmationReferences = ConfirmationReferences(

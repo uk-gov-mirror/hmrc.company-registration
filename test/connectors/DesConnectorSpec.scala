@@ -16,17 +16,15 @@
 
 package connectors
 
+import config.MicroserviceAppConfig
 import helpers.BaseSpec
-import mocks.{MockMetricsService, WSHttpMock}
-import org.mockito.ArgumentMatchers
+import mocks.WSHttpMock
+import org.mockito.ArgumentMatchers.{any, eq => eqTo}
 import org.mockito.Mockito._
 import play.api.libs.json.{JsValue, Json}
 import play.api.test.Helpers._
-import services.MetricsService
-import uk.gov.hmrc.http.{HeaderCarrier, HttpClient, HttpResponse, SessionId, UpstreamErrorResponse}
-import uk.gov.hmrc.play.audit.http.config.AuditingConfig
-import uk.gov.hmrc.play.audit.http.connector.AuditConnector
-import uk.gov.hmrc.play.audit.http.connector.AuditResult.Success
+import uk.gov.hmrc.http.{HeaderCarrier, HttpResponse, SessionId, UpstreamErrorResponse}
+import uk.gov.hmrc.play.bootstrap.config.ServicesConfig
 
 import java.util.UUID
 import scala.concurrent.ExecutionContext.Implicits.global
@@ -36,21 +34,23 @@ class DesConnectorSpec extends BaseSpec with WSHttpMock {
 
   trait Setup {
 
-    val mockAuditConnector: AuditConnector = mock[AuditConnector]
-    val mockAuditingConfig: AuditingConfig = mock[AuditingConfig]
+    implicit val ec: ExecutionContext = global
+    val serviceURL = "http:///test-connector-url"
+    val urlHeaderEnvironment = "test"
+    val urlHeaderAuthorization = "testAuth"
+    val headers = Seq("Authorization" -> s"Bearer $urlHeaderAuthorization", "Environment" -> urlHeaderEnvironment)
 
-    when(mockAuditConnector.auditingConfig) thenReturn mockAuditingConfig
-    when(mockAuditingConfig.auditSource) thenReturn "company-registration"
+    val brUrl = s"$serviceURL/business-registration/corporation-tax"
+    val biUrl = s"$serviceURL/business-incorporation/corporation-tax"
 
-    val connector: DesConnector = new DesConnector {
-      override lazy val serviceURL = "serviceUrl"
-      override val http: HttpClient = mockWSHttp
-      val urlHeaderEnvironment = "test"
-      val urlHeaderAuthorization = "testAuth"
-      val auditConnector: AuditConnector = mockAuditConnector
-      val metricsService: MetricsService = MockMetricsService
-      implicit val ec: ExecutionContext = global
-    }
+    val mockMicroserviceAppConfig: MicroserviceAppConfig = mock[MicroserviceAppConfig]
+    val connector: DesConnector = new DesConnector(mockMicroserviceAppConfig, mockWSHttp)(ec)
+
+    when(mockMicroserviceAppConfig.desUrl).thenReturn(serviceURL)
+    when(mockMicroserviceAppConfig.getConfigString(eqTo("des-service.environment"))).thenReturn(urlHeaderEnvironment)
+    when(mockMicroserviceAppConfig.getConfigString(eqTo("des-service.authorization-token"))).thenReturn(urlHeaderAuthorization)
+
+    reset(mockWSHttp)
   }
 
   "httpRds" must {
@@ -67,69 +67,69 @@ class DesConnectorSpec extends BaseSpec with WSHttpMock {
     }
   }
 
-  "DesConnector" must {
-    val submission = Json.obj("x" -> "y")
+  "DscConnector" must {
+    val submissionJson = Json.obj("x" -> "y")
     implicit val hc: HeaderCarrier = new HeaderCarrier(sessionId = Some(SessionId(s"session-${UUID.randomUUID}")))
 
     "for accepted submission, return success" in new Setup {
-      when(mockWSHttp.POST[JsValue, HttpResponse](ArgumentMatchers.any(), ArgumentMatchers.any(), ArgumentMatchers.any())(ArgumentMatchers.any(), ArgumentMatchers.any(), ArgumentMatchers.any(), ArgumentMatchers.any())).
-        thenReturn(Future.successful(HttpResponse(202, json = Json.obj("x" -> "y"), Map())))
+      when(mockWSHttp.POST[JsValue, HttpResponse](any(), any(), any())(any(), any(), any(),any()))
+        .thenReturn(Future.successful(HttpResponse(202, submissionJson, Map())))
 
-      when(mockAuditConnector.sendExtendedEvent(ArgumentMatchers.any())(ArgumentMatchers.any(), ArgumentMatchers.any()))
-        .thenReturn(Future.successful(Success))
-
-      val result: HttpResponse = await(connector.ctSubmission("", submission, "testJID"))
-
+      val result: HttpResponse = await(connector.ctSubmission("", submissionJson, "testJID"))
       result.status mustBe 202
+
+      verify(mockWSHttp, times(1)).POST(eqTo(brUrl), eqTo(submissionJson), eqTo(headers))(any(), any(), any(),any())
     }
 
     "for topup  submission, return success" in new Setup {
-      when(mockWSHttp.POST[JsValue, HttpResponse](ArgumentMatchers.any(), ArgumentMatchers.any(), ArgumentMatchers.any())(ArgumentMatchers.any(), ArgumentMatchers.any(), ArgumentMatchers.any(), ArgumentMatchers.any())).
-        thenReturn(Future.successful(HttpResponse(202, json = Json.obj("x" -> "y"), Map())))
+      when(mockWSHttp.POST[JsValue, HttpResponse](any(), any(), any())(any(), any(), any(), any()))
+        .thenReturn(Future.successful(HttpResponse(202, submissionJson, Map())))
 
-      when(mockAuditConnector.sendExtendedEvent(ArgumentMatchers.any())(ArgumentMatchers.any(), ArgumentMatchers.any()))
-        .thenReturn(Future.successful(Success))
-
-      val result: HttpResponse = await(connector.topUpCTSubmission("", submission, "testJID"))
-
+      val result: HttpResponse = await(connector.topUpCTSubmission("", submissionJson, "testJID"))
       result.status mustBe 202
+
+      verify(mockWSHttp, times(1)).POST(eqTo(biUrl), eqTo(submissionJson), eqTo(headers))(any(), any(), any(),any())
     }
 
     "for a forbidden request, return a bad request" in new Setup {
-      when(mockWSHttp.POST[JsValue, HttpResponse](ArgumentMatchers.any(), ArgumentMatchers.any(), ArgumentMatchers.any())(ArgumentMatchers.any(), ArgumentMatchers.any(), ArgumentMatchers.any(), ArgumentMatchers.any())).
-        thenReturn(Future.failed(UpstreamErrorResponse("", 403, 400)))
-
-      when(mockAuditConnector.sendExtendedEvent(ArgumentMatchers.any())(ArgumentMatchers.any(), ArgumentMatchers.any()))
-        .thenReturn(Future.successful(Success))
+      when(mockWSHttp.POST[JsValue, HttpResponse](any(), any(), any())(any(), any(), any(), any()))
+        .thenReturn(Future.failed(UpstreamErrorResponse("", 403, 400)))
 
       intercept[UpstreamErrorResponse] {
-        await(connector.ctSubmission("", submission, "testJID"))
+        await(connector.ctSubmission("", submissionJson, "testJID"))
       }
+      verify(mockWSHttp, times(1)).POST(eqTo(brUrl), eqTo(submissionJson), eqTo(headers))(any(), any(), any(),any())
     }
 
     "for a forbidden topup request, return a bad request" in new Setup {
-      when(mockWSHttp.POST[JsValue, HttpResponse](ArgumentMatchers.any(), ArgumentMatchers.any(), ArgumentMatchers.any())(ArgumentMatchers.any(), ArgumentMatchers.any(), ArgumentMatchers.any(), ArgumentMatchers.any())).
-        thenReturn(Future.failed(UpstreamErrorResponse("", 403, 400)))
-
-      when(mockAuditConnector.sendExtendedEvent(ArgumentMatchers.any())(ArgumentMatchers.any(), ArgumentMatchers.any()))
-        .thenReturn(Future.successful(Success))
+      when(mockWSHttp.POST[JsValue, HttpResponse](any(), any(), any())(any(), any(), any(), any()))
+        .thenReturn(Future.failed(UpstreamErrorResponse("", 403, 400)))
 
       intercept[UpstreamErrorResponse] {
-        await(connector.topUpCTSubmission("", submission, "testJID"))
+        await(connector.topUpCTSubmission("", submissionJson, "testJID"))
       }
+      verify(mockWSHttp, times(1)).POST(eqTo(biUrl), eqTo(submissionJson), eqTo(headers))(any(), any(), any(),any())
     }
 
 
-    "for a client request timedout, return unavailable" in new Setup {
-      when(mockWSHttp.POST[JsValue, HttpResponse](ArgumentMatchers.any(), ArgumentMatchers.any(), ArgumentMatchers.any())(ArgumentMatchers.any(), ArgumentMatchers.any(), ArgumentMatchers.any(), ArgumentMatchers.any())).
-        thenReturn(Future.failed(UpstreamErrorResponse("", 499, 502)))
-
-      when(mockAuditConnector.sendExtendedEvent(ArgumentMatchers.any())(ArgumentMatchers.any(), ArgumentMatchers.any()))
-        .thenReturn(Future.successful(Success))
+    "for a client request timeout, return unavailable" in new Setup {
+      when(mockWSHttp.POST[JsValue, HttpResponse](any(), any(), any())(any(), any(), any(), any()))
+        .thenReturn(Future.failed(UpstreamErrorResponse("", 499, 502)))
 
       intercept[UpstreamErrorResponse] {
-        await(connector.ctSubmission("", submission, "testJID"))
+        await(connector.ctSubmission("", submissionJson, "testJID"))
       }
+      verify(mockWSHttp, times(1)).POST(eqTo(brUrl), eqTo(submissionJson), eqTo(headers))(any(), any(), any(),any())
+    }
+
+    "for a client topup request timeout, return unavailable" in new Setup {
+      when(mockWSHttp.POST[JsValue, HttpResponse](any(), any(), any())(any(), any(), any(), any()))
+        .thenReturn(Future.failed(UpstreamErrorResponse("", 499, 502)))
+
+      intercept[UpstreamErrorResponse] {
+        await(connector.topUpCTSubmission("", submissionJson, "testJID"))
+      }
+      verify(mockWSHttp, times(1)).POST(eqTo(biUrl), eqTo(submissionJson), eqTo(headers))(any(), any(), any(),any())
     }
   }
 

@@ -18,7 +18,7 @@ package services
 
 import audit._
 import config.MicroserviceAppConfig
-import connectors.{BusinessRegistrationConnector, DesConnector, EmailErrorResponse, IncorporationCheckAPIConnector}
+import connectors.{BusinessRegistrationConnector, EmailErrorResponse, IncorporationCheckAPIConnector}
 import helpers.DateHelper
 import models._
 import play.api.libs.json.{JsObject, Json}
@@ -32,7 +32,7 @@ import javax.inject.Inject
 import scala.concurrent.{ExecutionContext, Future}
 import scala.util.control.NoStackTrace
 
-class ProcessIncorporationServiceImpl @Inject()(val desConnector: DesConnector,
+class ProcessIncorporationServiceImpl @Inject()(val submissionEventService: SubmissionEventService,
                                                 val incorporationCheckAPIConnector: IncorporationCheckAPIConnector,
                                                 val accountingService: AccountingDetailsService,
                                                 val brConnector: BusinessRegistrationConnector,
@@ -60,7 +60,7 @@ private[services] object FailedToDeleteSubmissionData extends NoStackTrace
 trait ProcessIncorporationService extends DateHelper with HttpErrorFunctions with Logging {
 
   implicit val ec: ExecutionContext
-  val desConnector: DesConnector
+  val submissionEventService: SubmissionEventService
   val incorporationCheckAPIConnector: IncorporationCheckAPIConnector
   val ctRepository: CorporationTaxRegistrationMongoRepository
   val accountingService: AccountingDetailsService
@@ -171,7 +171,7 @@ trait ProcessIncorporationService extends DateHelper with HttpErrorFunctions wit
           } yield submitted
           ) recover {
           case e =>
-            logger.error(s"""[updateHeldSubmission] Submission to DES failed for ack ref $ackRef. Corresponding RegID: $journeyId and Transaction ID: ${item.transactionId}""")
+            logger.error(s"""[updateHeldSubmission] Submission to DES/HIP failed for ack ref $ackRef. Corresponding RegID: $journeyId and Transaction ID: ${item.transactionId}""")
             throw e
         }
       case None =>
@@ -184,7 +184,7 @@ trait ProcessIncorporationService extends DateHelper with HttpErrorFunctions wit
   private[services] def processAcceptedSubmission(item: IncorpUpdate, ackRef: String, ctReg: CorporationTaxRegistration,
                                                   submission: JsObject, isAdmin: Boolean = false)(implicit hc: HeaderCarrier): Future[Boolean] = {
     for {
-      submitted <- desConnector.topUpCTSubmission(ackRef, submission, ctReg.registrationID, isAdmin) map (_ => true)
+      submitted <- submissionEventService.topUpCTSubmission(ackRef, submission, ctReg.registrationID) map (_ => true)
       _ = auditSuccessfulTopUp(submission, item, ctReg)
     } yield submitted
   }
@@ -197,7 +197,7 @@ trait ProcessIncorporationService extends DateHelper with HttpErrorFunctions wit
           "status" -> "Rejected",
           "acknowledgementReference" -> ackRef
         )
-        desConnector.topUpCTSubmission(ackRef, rejectedTopUp, ctReg.registrationID, isAdmin) map { _ =>
+        submissionEventService.topUpCTSubmission(ackRef, rejectedTopUp, ctReg.registrationID) map { _ =>
           auditSuccessfulTopUp(rejectedTopUp, item, ctReg)
           true
         }
