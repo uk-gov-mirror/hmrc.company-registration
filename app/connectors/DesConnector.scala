@@ -28,7 +28,7 @@ import scala.concurrent.{ExecutionContext, Future}
 @Singleton
 class DesConnector @Inject()(
                               microserviceAppConfig: MicroserviceAppConfig,
-                              http: HttpClient,
+                              http: HttpClient
                             )(
                               implicit ec: ExecutionContext) extends RawResponseReads with HttpErrorFunctions with Logging {
 

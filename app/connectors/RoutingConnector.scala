@@ -40,7 +40,11 @@ class RoutingConnector @Inject()(
 
   def topUpCTSubmission(ackRef: String, submission: JsObject, journeyId: String)(
                                       implicit headerCarrier: HeaderCarrier): Future[HttpResponse] = {
-    desConnector.topUpCTSubmission(ackRef, submission, journeyId)
+    if (appConfig.useHip) {
+      hipConnector.topUpCTSubmission(ackRef, submission, journeyId)
+    } else {
+      desConnector.topUpCTSubmission(ackRef, submission, journeyId)
+    }
   }
 }
 
