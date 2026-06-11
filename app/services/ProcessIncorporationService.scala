@@ -67,14 +67,13 @@ trait ProcessIncorporationService extends DateHelper with HttpErrorFunctions wit
   val brConnector: BusinessRegistrationConnector
   val auditService: AuditService
   val sendEmailService: SendEmailService
+  val microserviceAppConfig: MicroserviceAppConfig
 
   val addressLine4FixRegID: String
   val amendedAddressLine4: String
   val blockageLoggingDay: String
   val blockageLoggingTime: String
 
-
-  private[services] class FailedToRetrieveByAckRef extends NoStackTrace
 
   private[services] class MissingAccountingDates extends NoStackTrace
 
@@ -171,7 +170,8 @@ trait ProcessIncorporationService extends DateHelper with HttpErrorFunctions wit
           } yield submitted
           ) recover {
           case e =>
-            logger.error(s"""[updateHeldSubmission] Submission to DES/HIP failed for ack ref $ackRef. Corresponding RegID: $journeyId and Transaction ID: ${item.transactionId}""")
+            logger.error(s"[updateHeldSubmission] Submission to ${microserviceAppConfig.etmpRoute}" +
+              " failed for ack ref $ackRef. Corresponding RegID: $journeyId and Transaction ID: ${item.transactionId}")
             throw e
         }
       case None =>

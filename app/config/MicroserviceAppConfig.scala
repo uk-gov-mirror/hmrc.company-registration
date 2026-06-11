@@ -43,6 +43,5 @@ class MicroserviceAppConfig @Inject()(servicesConfig: ServicesConfig, configurat
   lazy val hipUrl: String          = servicesConfig.baseUrl("hip-connector")
   lazy val hipClientId: String     = servicesConfig.getString("microservice.services.hip.clientId")
   lazy val hipClientSecret: String = servicesConfig.getString("microservice.services.hip.clientSecret")
-
-
+  lazy val etmpRoute: String       = if (useHip) "HIP" else "DES"
 }

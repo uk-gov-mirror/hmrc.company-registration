@@ -164,7 +164,7 @@ trait SubmissionService extends DateHelper with Logging {
       case Some(sesID) => (sesID.value, authProvId)
       case None => ctData.sessionIdentifiers match {
         case Some(sessionIdentifiers) => (sessionIdentifiers.sessionId, sessionIdentifiers.credId)
-        case None => throw new RuntimeException(s"[buildPartialDesSubmission] No session identifiers available for DES/HIP submission")
+        case None => throw new RuntimeException(s"[buildPartialDesSubmission] No session identifiers available for ETMP submission")
       }
     }
 
@@ -259,7 +259,7 @@ trait SubmissionService extends DateHelper with Logging {
                                                   (implicit hc: HeaderCarrier, req: Request[AnyContent]): Future[AuditResult] = {
     import PPOB.RO
 
-    val ppob = doc.companyDetails.getOrElse(throw new RuntimeException(s"Could not retrieve Company Registration after DES/HIP Submission for $regId")).ppob
+    val ppob = doc.companyDetails.getOrElse(throw new RuntimeException(s"Could not retrieve Company Registration after ETMP Submission for $regId")).ppob
     val (txID, uprn) = (ppob.addressType, ppob.address) match {
       case (RO, _) => (None, None)
       case (_, Some(address)) => (Some(address.txid), address.uprn)

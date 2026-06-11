@@ -16,6 +16,7 @@
 
 package controllers
 
+import config.MicroserviceAppConfig
 import models._
 import utils.Logging
 import play.api.libs.json.{JsValue, Reads}
@@ -27,14 +28,16 @@ import javax.inject.{Inject, Singleton}
 import scala.concurrent.{ExecutionContext, Future}
 
 @Singleton
-class ProcessIncorporationsController @Inject()(val processIncorporationService: ProcessIncorporationService,
-                                                val corpTaxRegService: CorporationTaxRegistrationService,
-                                                val submissionService: SubmissionService,
+class ProcessIncorporationsController @Inject()(processIncorporationService: ProcessIncorporationService, corpTaxRegService: CorporationTaxRegistrationService,
+                                                submissionService: SubmissionService,
+                                                appConfig: MicroserviceAppConfig,
                                                 controllerComponents: ControllerComponents
                                                )(implicit val ec: ExecutionContext) extends BackendController(controllerComponents) with Logging {
 
+  lazy val etmpRoute = appConfig.etmpRoute
+
   private def logFailedTopup(txId: String, method: String): Unit =
-    logger.error(s"[$method] FAILED_DES/HIP_TOPUP - Topup failed for transaction ID: $txId")
+    logger.error(s"[$method] FAILED_${etmpRoute}_TOPUP - Topup failed for transaction ID: $txId")
 
   def processIncorporationNotification: Action[JsValue] = Action.async[JsValue](parse.json) {
     implicit request =>

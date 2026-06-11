@@ -17,6 +17,7 @@
 package services
 
 import audit.FailedIncorporationAuditEventDetail
+import config.MicroserviceAppConfig
 import connectors._
 import fixtures.CorporationTaxRegistrationFixture
 import models._
@@ -49,6 +50,7 @@ class ProcessIncorporationServiceSpec extends PlaySpec with MockitoSugar with Co
   val mockAuthConnector: AuthConnector = mock[AuthConnector]
   val mockAuditService: AuditService = mock[AuditService]
   val mockSendEmailService: SendEmailService = mock[SendEmailService]
+  val mockMicroserviceAppConfig: MicroserviceAppConfig = mock[MicroserviceAppConfig]
 
   override def beforeEach(): Unit = {
     resetMocks()
@@ -62,7 +64,8 @@ class ProcessIncorporationServiceSpec extends PlaySpec with MockitoSugar with Co
     mockSubmissionEventService,
     mockBRConnector,
     mockSendEmailService,
-    mockAccountService
+    mockAccountService,
+    mockMicroserviceAppConfig
   )
 
 
@@ -75,6 +78,8 @@ class ProcessIncorporationServiceSpec extends PlaySpec with MockitoSugar with Co
     val auditService: AuditService = mockAuditService
     val microserviceAuthConnector: AuthConnector = mockAuthConnector
     val sendEmailService: SendEmailService = mockSendEmailService
+    val microserviceAppConfig: MicroserviceAppConfig = mockMicroserviceAppConfig
+
     override val addressLine4FixRegID: String = "false"
     override val amendedAddressLine4: String = ""
     override val blockageLoggingDay: String = "MON,TUE,WED,THU,FRI"
@@ -301,7 +306,7 @@ class ProcessIncorporationServiceSpec extends PlaySpec with MockitoSugar with Co
         override def updateHeldSubmission(item: IncorpUpdate, ctReg: CorporationTaxRegistration, journeyId: String, isAdmin: Boolean = false)(implicit hc: HeaderCarrier): Future[Boolean] = Future.successful(true)
       }
     }
-    "return true for a DES/HIP ready submission" in new SetupNoProcess {
+    "return true for a Http ready submission" in new SetupNoProcess {
       when(mockCTRepository.findOneBySelector(mockCTRepository.transIdSelector(ArgumentMatchers.eq(transId))))
         .thenReturn(Future.successful(Some(validCR)))
 
@@ -417,28 +422,30 @@ class ProcessIncorporationServiceSpec extends PlaySpec with MockitoSugar with Co
       await(Service.processIncorporationUpdate(incorpRejected)) mustBe false
     }
 
-    "return an exception when processing a rejected incorporation and Des returns a 500" in new Setup {
-      when(mockCTRepository.findOneBySelector(mockCTRepository.transIdSelector(ArgumentMatchers.eq(transId))))
-        .thenReturn(Future.successful(Some(validCR)))
-      when(mockCTRepository.updateSubmissionStatus(ArgumentMatchers.any(), ArgumentMatchers.any())).thenReturn(Future.successful("rejected"))
-      when(mockAuditService.sendEvent(
-        ArgumentMatchers.eq("failedIncorpInformation"),
-        ArgumentMatchers.eq(FailedIncorporationAuditEventDetail(
-          validCR.registrationID,
-          "testReason"
-        )),
-        ArgumentMatchers.any()
-      )(ArgumentMatchers.any[HeaderCarrier](), ArgumentMatchers.eq(FailedIncorporationAuditEventDetail.format)))
-        .thenReturn(Future.successful(Success))
-      when(mockSubmissionEventService.topUpCTSubmission(ArgumentMatchers.any(), ArgumentMatchers.any(), ArgumentMatchers.any())(ArgumentMatchers.any()))
-        .thenReturn(Future.failed(new InternalServerException("DES/HIP returned a 500")))
-      when(mockCTRepository.removeTaxRegistrationById(ArgumentMatchers.eq(validCR.registrationID)))
-        .thenReturn(Future.successful(true))
-      when(mockBRConnector.removeMetadata(ArgumentMatchers.eq(validCR.registrationID))(ArgumentMatchers.any()))
-        .thenReturn(Future.successful(true))
+    for (etmpRoute <- Seq("DES", "HIP")) {
+      s"return an exception when processing a rejected incorporation and $etmpRoute returns a 500" in new Setup {
+        when(mockCTRepository.findOneBySelector(mockCTRepository.transIdSelector(ArgumentMatchers.eq(transId))))
+          .thenReturn(Future.successful(Some(validCR)))
+        when(mockCTRepository.updateSubmissionStatus(ArgumentMatchers.any(), ArgumentMatchers.any())).thenReturn(Future.successful("rejected"))
+        when(mockAuditService.sendEvent(
+          ArgumentMatchers.eq("failedIncorpInformation"),
+          ArgumentMatchers.eq(FailedIncorporationAuditEventDetail(
+            validCR.registrationID,
+            "testReason"
+          )),
+          ArgumentMatchers.any()
+        )(ArgumentMatchers.any[HeaderCarrier](), ArgumentMatchers.eq(FailedIncorporationAuditEventDetail.format)))
+          .thenReturn(Future.successful(Success))
+        when(mockSubmissionEventService.topUpCTSubmission(ArgumentMatchers.any(), ArgumentMatchers.any(), ArgumentMatchers.any())(ArgumentMatchers.any()))
+          .thenReturn(Future.failed(new InternalServerException(s"$etmpRoute returned a 500")))
+        when(mockCTRepository.removeTaxRegistrationById(ArgumentMatchers.eq(validCR.registrationID)))
+          .thenReturn(Future.successful(true))
+        when(mockBRConnector.removeMetadata(ArgumentMatchers.eq(validCR.registrationID))(ArgumentMatchers.any()))
+          .thenReturn(Future.successful(true))
 
-      intercept[InternalServerException] {
-        await(Service.processIncorporationUpdate(incorpRejected))
+        intercept[InternalServerException] {
+          await(Service.processIncorporationUpdate(incorpRejected))
+        }
       }
     }
 
