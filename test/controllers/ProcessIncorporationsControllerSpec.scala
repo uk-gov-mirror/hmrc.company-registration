@@ -59,7 +59,6 @@ class ProcessIncorporationsControllerSpec extends PlaySpec with MockitoSugar wit
       mockMicroserviceAppConfig,
       stubControllerComponents(playBodyParsers = stubPlayBodyParsers(mat))) {
     }
-//    when(mockMicroserviceAppConfig.etmpRoute).thenReturn("HIP")
   }
 
   val rejectedIncorpJson: JsObject = Json.parse(

@@ -40,7 +40,7 @@ import scala.util.{Success, Try}
 @Singleton
 class CorporationTaxRegistrationServiceImpl @Inject()(val submissionCheckAPIConnector: IncorporationCheckAPIConnector,
                                                       val brConnector: BusinessRegistrationConnector,
-                                                      val desConnector: SubmissionEventService,
+                                                      val submissionEventService: SubmissionEventService,
                                                       val incorpInfoConnector: IncorporationInformationConnector,
                                                       val repositories: Repositories,
                                                       val auditConnector: AuditConnector,
@@ -70,7 +70,7 @@ trait CorporationTaxRegistrationService extends ScheduledService[Either[String, 
   val brConnector: BusinessRegistrationConnector
   val auditConnector: AuditConnector
   val incorpInfoConnector: IncorporationInformationConnector
-  val desConnector: SubmissionEventService
+  val submissionEventService: SubmissionEventService
   val submissionCheckAPIConnector: IncorporationCheckAPIConnector
   val lockKeeper: LockService
 

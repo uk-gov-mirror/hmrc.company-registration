@@ -43,7 +43,7 @@ class HipConnector @Inject()(
 
   def ctSubmission(ackRef: String, submission: JsValue, journeyId: String)(implicit hc: HeaderCarrier): Future[HttpResponse] = {
 
-    val uri = s"${appConfig.hipUrl}/business-registration/corporation-tax"
+    val uri = s"${appConfig.hipUrl}/RESTAdapter/business-registration/corporation-tax"
 
     cPOST(uri, submission) map { response =>
         logger.info(s"[ctSubmission] Submission to HIP successful for regId: $journeyId AckRef: $ackRef")
@@ -57,7 +57,7 @@ class HipConnector @Inject()(
     }
 
   def topUpCTSubmission(ackRef: String, submission: JsValue, journeyId: String)(implicit headerCarrier: HeaderCarrier): Future[HttpResponse] = {
-    val uri: String =s"${appConfig.hipUrl}/business-incorporation/corporation-tax"
+    val uri: String =s"${appConfig.hipUrl}/RESTAdapter/business-incorporation/corporation-tax"
 
     cPOST(uri, submission) map { response =>
       logger.info(s"[ctTopUpSubmission] Top up submission to HIP successful for regId: $journeyId AckRef: $ackRef")
@@ -98,7 +98,7 @@ class HipConnector @Inject()(
 
     httpClientV2
       .post(url"$uri")(hc)
-      .setHeader((CorrelationIdHeaderName, correlationId) +: hipHeaders:_*)
+      .setHeader(hipHeaders:_*)
       .withBody(body)
       .execute
   }

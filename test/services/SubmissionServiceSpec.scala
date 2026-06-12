@@ -112,7 +112,7 @@ class SubmissionServiceSpec extends BaseSpec with AuthorisationMocks with Corpor
     )
   }
 
-  def partialDesSubmission(ackRef: String, timestamp: String = "2016-10-27T17:06:23.000Z"): JsObject =
+  def partialEtmpSubmission(ackRef: String, timestamp: String = "2016-10-27T17:06:23.000Z"): JsObject =
     Json.obj(
       "acknowledgementReference" -> s"$ackRef",
       "registration" -> Json.obj(
@@ -282,13 +282,13 @@ class SubmissionServiceSpec extends BaseSpec with AuthorisationMocks with Corpor
 
     val ackRef: String = "ack-ref-12345"
 
-    val partialSubmission: JsObject = partialDesSubmission(ackRef)
+    val partialSubmission: JsObject = partialEtmpSubmission(ackRef)
 
     "send a partial submission to ETMP when the ETMP feature flag is enabled and return a HeldSubmissionData object when the connector returns a 200 HttpResponse" in new Setup {
       when(mockSubmissionEventService.ctSubmission(eqTo(ackRef), eqTo(partialSubmission), eqTo(regId))(any()))
         .thenReturn(Future.successful(HttpResponse(200, "")))
 
-      val result: HttpResponse = await(service.submitPartialToDES(regId, ackRef, partialSubmission, authProviderId))
+      val result: HttpResponse = await(service.submitPartialToEtmp(regId, ackRef, partialSubmission, authProviderId))
 
       result.status mustBe 200
 
@@ -301,7 +301,7 @@ class SubmissionServiceSpec extends BaseSpec with AuthorisationMocks with Corpor
       when(mockCorpTaxRepo.storeSessionIdentifiers(eqTo(regId), any(), any()))
         .thenReturn(Future.successful(true))
 
-      intercept[UpstreamErrorResponse](await(service.submitPartialToDES(regId, ackRef, partialSubmission, authProviderId)))
+      intercept[UpstreamErrorResponse](await(service.submitPartialToEtmp(regId, ackRef, partialSubmission, authProviderId)))
 
       verify(mockSubmissionEventService, times(1)).ctSubmission(eqTo(ackRef), eqTo(partialSubmission), eqTo(regId))(any())
     }
@@ -312,7 +312,7 @@ class SubmissionServiceSpec extends BaseSpec with AuthorisationMocks with Corpor
       when(mockCorpTaxRepo.storeSessionIdentifiers(eqTo(regId), any(), any()))
         .thenReturn(Future.successful(true))
 
-      intercept[UpstreamErrorResponse](await(service.submitPartialToDES(regId, ackRef, partialSubmission, authProviderId)))
+      intercept[UpstreamErrorResponse](await(service.submitPartialToEtmp(regId, ackRef, partialSubmission, authProviderId)))
 
       verify(mockSubmissionEventService, times(1)).ctSubmission(eqTo(ackRef), eqTo(partialSubmission), eqTo(regId))(any())
     }
@@ -429,7 +429,7 @@ class SubmissionServiceSpec extends BaseSpec with AuthorisationMocks with Corpor
     "return a valid partial ETMP submission" in new Setup {
       implicit val hc: HeaderCarrier = HeaderCarrier(sessionId = Some(SessionId("testSessionId")))
 
-      val interimDesRegistration: InterimDesRegistration = InterimDesRegistration(
+      val interimEtmpRegistration: InterimEtmpRegistration = InterimEtmpRegistration(
         ackRef,
         Metadata(sessionId, authProviderId, "en", dateTime, Director),
         InterimCorporationTax(
@@ -444,20 +444,20 @@ class SubmissionServiceSpec extends BaseSpec with AuthorisationMocks with Corpor
       when(mockCorpTaxRepo.findOneBySelector(mockCorpTaxRepo.regIDSelector(eqTo(registrationId))))
         .thenReturn(Future.successful(Some(corporationTaxRegistration)))
 
-      val result: InterimDesRegistration = service.buildPartialDesSubmission(regId, ackRef, authProviderId, businessRegistration, corporationTaxRegistration)
-      result.toString mustBe interimDesRegistration.toString
+      val result: InterimEtmpRegistration = service.buildPartialEtmpSubmission(regId, ackRef, authProviderId, businessRegistration, corporationTaxRegistration)
+      result.toString mustBe interimEtmpRegistration.toString
     }
 
-    "return a valid InterimDesRegistration with full contact details" in new Setup {
+    "return a valid InterimEtmpRegistration with full contact details" in new Setup {
       when(mockBRConnector.retrieveMetadataByRegId(ArgumentMatchers.any())(ArgumentMatchers.any()))
         .thenReturn(Future.successful(BusinessRegistrationSuccessResponse(businessRegistration)))
       when(mockCorpTaxRepo.findOneBySelector(mockCorpTaxRepo.regIDSelector(eqTo(registrationId))))
         .thenReturn(Future.successful(Some(corporationTaxRegistration)))
 
       val ctReg: CorporationTaxRegistration = getCTReg(regId, Some(companyDetails1), Some(contactDetails1))
-      val result: InterimDesRegistration = service.buildPartialDesSubmission(regId, ackRef, credId, businessRegistration, ctReg)
+      val result: InterimEtmpRegistration = service.buildPartialEtmpSubmission(regId, ackRef, credId, businessRegistration, ctReg)
 
-      result mustBe InterimDesRegistration(
+      result mustBe InterimEtmpRegistration(
         ackRef,
         Metadata(sessionId, credId, "en", dateTime, Director),
         InterimCorporationTax(
@@ -469,7 +469,7 @@ class SubmissionServiceSpec extends BaseSpec with AuthorisationMocks with Corpor
       )
     }
 
-    "return a valid InterimDesRegistration with minimal details" in new Setup {
+    "return a valid InterimEtmpRegistration with minimal details" in new Setup {
 
       when(mockBRConnector.retrieveMetadataByRegId(ArgumentMatchers.any())(ArgumentMatchers.any()))
         .thenReturn(Future.successful(BusinessRegistrationSuccessResponse(businessRegistration)))
@@ -477,9 +477,9 @@ class SubmissionServiceSpec extends BaseSpec with AuthorisationMocks with Corpor
         .thenReturn(Future.successful(Some(corporationTaxRegistration)))
 
       val ctReg: CorporationTaxRegistration = getCTReg(regId, Some(companyDetails2), Some(contactDetails2))
-      val result: InterimDesRegistration = service.buildPartialDesSubmission(regId, ackRef, credId, businessRegistration, ctReg)
+      val result: InterimEtmpRegistration = service.buildPartialEtmpSubmission(regId, ackRef, credId, businessRegistration, ctReg)
 
-      result mustBe InterimDesRegistration(
+      result mustBe InterimEtmpRegistration(
         ackRef,
         Metadata(sessionId, credId, "en", dateTime, Director),
         InterimCorporationTax(
@@ -492,7 +492,7 @@ class SubmissionServiceSpec extends BaseSpec with AuthorisationMocks with Corpor
       )
     }
 
-    "return a valid InterimDesRegistration with RO address as the PPOB" in new Setup {
+    "return a valid InterimEtmpRegistration with RO address as the PPOB" in new Setup {
 
       when(mockBRConnector.retrieveMetadataByRegId(ArgumentMatchers.any())(ArgumentMatchers.any()))
         .thenReturn(Future.successful(BusinessRegistrationSuccessResponse(businessRegistration)))
@@ -503,9 +503,9 @@ class SubmissionServiceSpec extends BaseSpec with AuthorisationMocks with Corpor
         .thenReturn(Some(PPOBAddress("P 1", "2", Some("L"), Some("R"), Some("ZZ1 1ZZ"), Some("CustomCountry"), None, "")))
 
       val ctReg: CorporationTaxRegistration = getCTReg(regId, Some(companyDetails3), Some(contactDetails2))
-      val result: InterimDesRegistration = service.buildPartialDesSubmission(regId, ackRef, credId, businessRegistration, ctReg)
+      val result: InterimEtmpRegistration = service.buildPartialEtmpSubmission(regId, ackRef, credId, businessRegistration, ctReg)
 
-      result mustBe InterimDesRegistration(
+      result mustBe InterimEtmpRegistration(
         ackRef,
         Metadata(sessionId, credId, "en", dateTime, Director),
         InterimCorporationTax(
@@ -517,7 +517,7 @@ class SubmissionServiceSpec extends BaseSpec with AuthorisationMocks with Corpor
       )
     }
 
-    "return a valid InterimDesRegistration and transpose any illegal address chars with RO address as the PPOB" in new Setup {
+    "return a valid InterimEtmpRegistration and transpose any illegal address chars with RO address as the PPOB" in new Setup {
 
       when(mockBRConnector.retrieveMetadataByRegId(ArgumentMatchers.any())(ArgumentMatchers.any()))
         .thenReturn(Future.successful(BusinessRegistrationSuccessResponse(businessRegistration)))
@@ -528,9 +528,9 @@ class SubmissionServiceSpec extends BaseSpec with AuthorisationMocks with Corpor
         .thenReturn(Some(PPOBAddress("P 1\\", "2:;", Some("L\\"), Some("R;:"), Some("ZZ1 1ZZ"), Some("CustomCountry"), None, "")))
 
       val ctReg: CorporationTaxRegistration = getCTReg(regId, Some(companyDetailsWithIllegalChars), Some(contactDetails2))
-      val result: InterimDesRegistration = service.buildPartialDesSubmission(regId, ackRef, credId, businessRegistration, ctReg)
+      val result: InterimEtmpRegistration = service.buildPartialEtmpSubmission(regId, ackRef, credId, businessRegistration, ctReg)
 
-      result mustBe InterimDesRegistration(
+      result mustBe InterimEtmpRegistration(
         ackRef,
         Metadata(sessionId, credId, "en", dateTime, Director),
         InterimCorporationTax(
@@ -545,7 +545,7 @@ class SubmissionServiceSpec extends BaseSpec with AuthorisationMocks with Corpor
     "return a valid partial ETMP submission if the sessionID is available in mongo" in new Setup {
       implicit val hc: HeaderCarrier = HeaderCarrier()
 
-      val interimDesRegistration: InterimDesRegistration = InterimDesRegistration(
+      val interimEtmpRegistration: InterimEtmpRegistration = InterimEtmpRegistration(
         ackRef,
         Metadata(sessionId, authProviderId, "en", dateTime, Director),
         InterimCorporationTax(
@@ -561,10 +561,10 @@ class SubmissionServiceSpec extends BaseSpec with AuthorisationMocks with Corpor
       when(mockCorpTaxRepo.findOneBySelector(mockCorpTaxRepo.regIDSelector(eqTo(registrationId))))
         .thenReturn(Future.successful(Some(corporationTaxRegistration)))
 
-      val result: InterimDesRegistration = service.buildPartialDesSubmission(
+      val result: InterimEtmpRegistration = service.buildPartialEtmpSubmission(
         regId, ackRef, authProviderId, businessRegistration, corporationTaxRegistration.copy(sessionIdentifiers = Some(SessionIds(sessionId, authProviderId)))
       )
-      result.toString mustBe interimDesRegistration.toString
+      result.toString mustBe interimEtmpRegistration.toString
     }
 
     "return a valid ETMP Submission if groups is provided but relief is false" in new Setup {
@@ -574,9 +574,9 @@ class SubmissionServiceSpec extends BaseSpec with AuthorisationMocks with Corpor
         .thenReturn(Future.successful(Some(corporationTaxRegistration)))
 
       val ctReg: CorporationTaxRegistration = getCTReg(regId, Some(companyDetails2), Some(contactDetails2)).copy(groups = Some(Groups(groupRelief = false, None, None, None)))
-      val result: InterimDesRegistration = service.buildPartialDesSubmission(regId, ackRef, credId, businessRegistration, ctReg)
+      val result: InterimEtmpRegistration = service.buildPartialEtmpSubmission(regId, ackRef, credId, businessRegistration, ctReg)
 
-      result mustBe InterimDesRegistration(
+      result mustBe InterimEtmpRegistration(
         ackRef,
         Metadata(sessionId, credId, "en", dateTime, Director),
         InterimCorporationTax(
@@ -603,9 +603,9 @@ class SubmissionServiceSpec extends BaseSpec with AuthorisationMocks with Corpor
           groups = Some(Groups(groupRelief = false, Some(GroupCompanyName("testGroupName", GroupCompanyNameEnum.Other)), None, None))
         )
 
-      val result: InterimDesRegistration = service.buildPartialDesSubmission(regId, ackRef, credId, businessRegistration, ctReg)
+      val result: InterimEtmpRegistration = service.buildPartialEtmpSubmission(regId, ackRef, credId, businessRegistration, ctReg)
 
-      result mustBe InterimDesRegistration(
+      result mustBe InterimEtmpRegistration(
         ackRef,
         Metadata(sessionId, credId, "en", dateTime, Director),
         InterimCorporationTax(
@@ -636,9 +636,9 @@ class SubmissionServiceSpec extends BaseSpec with AuthorisationMocks with Corpor
             Some(GroupUTR(None))
           ))
         )
-      val result: InterimDesRegistration = service.buildPartialDesSubmission(regId, ackRef, credId, businessRegistration, ctReg)
+      val result: InterimEtmpRegistration = service.buildPartialEtmpSubmission(regId, ackRef, credId, businessRegistration, ctReg)
 
-      result mustBe InterimDesRegistration(
+      result mustBe InterimEtmpRegistration(
         ackRef,
         Metadata(sessionId, credId, "en", dateTime, Director),
         InterimCorporationTax(
@@ -673,9 +673,9 @@ class SubmissionServiceSpec extends BaseSpec with AuthorisationMocks with Corpor
             Some(GroupUTR(None))
           ))
         )
-      val result: InterimDesRegistration = service.buildPartialDesSubmission(regId, ackRef, credId, businessRegistration, ctReg)
+      val result: InterimEtmpRegistration = service.buildPartialEtmpSubmission(regId, ackRef, credId, businessRegistration, ctReg)
 
-      result mustBe InterimDesRegistration(
+      result mustBe InterimEtmpRegistration(
         ackRef,
         Metadata(sessionId, credId, "en", dateTime, Director),
         InterimCorporationTax(
@@ -730,9 +730,9 @@ class SubmissionServiceSpec extends BaseSpec with AuthorisationMocks with Corpor
             ))
         )
 
-      val result: InterimDesRegistration = service.buildPartialDesSubmission(regId, ackRef, credId, businessRegistration, ctReg)
+      val result: InterimEtmpRegistration = service.buildPartialEtmpSubmission(regId, ackRef, credId, businessRegistration, ctReg)
 
-      result mustBe InterimDesRegistration(
+      result mustBe InterimEtmpRegistration(
         ackRef,
         Metadata(sessionId, credId, "en", dateTime, Director),
         InterimCorporationTax(
@@ -791,9 +791,9 @@ class SubmissionServiceSpec extends BaseSpec with AuthorisationMocks with Corpor
             ))
         )
 
-      val result: InterimDesRegistration = service.buildPartialDesSubmission(regId, ackRef, credId, businessRegistration, ctReg)
+      val result: InterimEtmpRegistration = service.buildPartialEtmpSubmission(regId, ackRef, credId, businessRegistration, ctReg)
 
-      result mustBe InterimDesRegistration(
+      result mustBe InterimEtmpRegistration(
         ackRef,
         Metadata(sessionId, credId, "en", dateTime, Director),
         InterimCorporationTax(
@@ -830,9 +830,9 @@ class SubmissionServiceSpec extends BaseSpec with AuthorisationMocks with Corpor
           Some(contactDetails2)).copy(
           groups = Some(Groups(groupRelief = false, None, None, None)),
           takeoverDetails = Some(TakeoverDetails(replacingAnotherBusiness = false, None, None, None, None)))
-      val result: InterimDesRegistration = service.buildPartialDesSubmission(regId, ackRef, credId, businessRegistration, ctReg)
+      val result: InterimEtmpRegistration = service.buildPartialEtmpSubmission(regId, ackRef, credId, businessRegistration, ctReg)
 
-      result mustBe InterimDesRegistration(
+      result mustBe InterimEtmpRegistration(
         ackRef,
         Metadata(sessionId, credId, "en", dateTime, Director),
         InterimCorporationTax(
@@ -855,7 +855,7 @@ class SubmissionServiceSpec extends BaseSpec with AuthorisationMocks with Corpor
       val ctReg: CorporationTaxRegistration = getCTReg(regId, Some(companyDetails2), Some(contactDetails2)).copy(
         groups = Some(Groups(groupRelief = true, None, Some(GroupsAddressAndType(GroupAddressTypeEnum.ALF, BusinessAddress("1", "1", None, None, Some("ZZ1 1ZZ"), None))), Some(GroupUTR(None)))))
 
-      val res: RuntimeException = intercept[RuntimeException](service.buildPartialDesSubmission(regId, ackRef, credId, businessRegistration, ctReg))
+      val res: RuntimeException = intercept[RuntimeException](service.buildPartialEtmpSubmission(regId, ackRef, credId, businessRegistration, ctReg))
       res.getMessage mustBe s"formatGroupsForSubmission groups exists but name does not: $regId"
     }
 
@@ -868,7 +868,7 @@ class SubmissionServiceSpec extends BaseSpec with AuthorisationMocks with Corpor
       val ctReg: CorporationTaxRegistration = getCTReg(regId, Some(companyDetails2), Some(contactDetails2)).copy(
         groups = Some(Groups(groupRelief = true, Some(GroupCompanyName("testGroupName", GroupCompanyNameEnum.Other)), None, Some(GroupUTR(None)))))
 
-      val res: RuntimeException = intercept[RuntimeException](service.buildPartialDesSubmission(regId, ackRef, credId, businessRegistration, ctReg))
+      val res: RuntimeException = intercept[RuntimeException](service.buildPartialEtmpSubmission(regId, ackRef, credId, businessRegistration, ctReg))
       res.getMessage mustBe s"formatGroupsForSubmission groups exists but address does not: $regId"
     }
 
@@ -890,7 +890,7 @@ class SubmissionServiceSpec extends BaseSpec with AuthorisationMocks with Corpor
         ))
       )
 
-      val res: RuntimeException = intercept[RuntimeException](service.buildPartialDesSubmission(regId, ackRef, credId, businessRegistration, ctReg))
+      val res: RuntimeException = intercept[RuntimeException](service.buildPartialEtmpSubmission(regId, ackRef, credId, businessRegistration, ctReg))
       res.getMessage mustBe s"formatGroupsForSubmission groups exists but utr block does not: $regId"
     }
 
@@ -910,14 +910,14 @@ class SubmissionServiceSpec extends BaseSpec with AuthorisationMocks with Corpor
             Some(GroupCompanyName("%%&&&&&", GroupCompanyNameEnum.Other)),
             Some(GroupsAddressAndType(GroupAddressTypeEnum.ALF, BusinessAddress("1", "1", None, None, Some("ZZ1 1ZZ"), None))), Some(GroupUTR(None)))))
 
-      val res: RuntimeException = intercept[RuntimeException](service.buildPartialDesSubmission(regId, ackRef, credId, businessRegistration, ctReg))
+      val res: RuntimeException = intercept[RuntimeException](service.buildPartialEtmpSubmission(regId, ackRef, credId, businessRegistration, ctReg))
       res.getMessage mustBe s"Parent group name saved does not pass des validation: $regId"
     }
 
     "throw a RunTime exception if there is no sessionID in the header carrier or mongo" in new Setup {
       implicit val hc: HeaderCarrier = HeaderCarrier()
 
-      val interimDesRegistration: InterimDesRegistration = InterimDesRegistration(
+      val interimEtmpRegistration: InterimEtmpRegistration = InterimEtmpRegistration(
         ackRef,
         Metadata(sessionId, authProviderId, "en", dateTime, Director),
         InterimCorporationTax(
@@ -934,7 +934,7 @@ class SubmissionServiceSpec extends BaseSpec with AuthorisationMocks with Corpor
         .thenReturn(Future.successful(Some(corporationTaxRegistration)))
 
       val ctReg: CorporationTaxRegistration = getCTReg(regId, Some(companyDetails1), Some(contactDetails1))
-      intercept[RuntimeException](service.buildPartialDesSubmission(regId, ackRef, authProviderId, businessRegistration, ctReg))
+      intercept[RuntimeException](service.buildPartialEtmpSubmission(regId, ackRef, authProviderId, businessRegistration, ctReg))
     }
   }
 

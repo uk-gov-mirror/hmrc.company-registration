@@ -148,31 +148,31 @@ trait SubmissionService extends DateHelper with Logging {
                                                 (implicit hc: HeaderCarrier, req: Request[AnyContent]): Future[Boolean] = {
     for {
       brMetadata <- retrieveBRMetadata(regId, isAdmin)
-      partialSubmission = buildPartialDesSubmission(regId, confRefs.acknowledgementReference, authProvId, brMetadata, doc)
+      partialSubmission = buildPartialEtmpSubmission(regId, confRefs.acknowledgementReference, authProvId, brMetadata, doc)
       partialSubmissionAsJson = Json.toJson(partialSubmission).as[JsObject]
       _ <- incorpInfoConnector.registerInterest(regId, confRefs.transactionId)
-      _ <- submitPartialToDES(regId, confRefs.acknowledgementReference, partialSubmissionAsJson, authProvId)
+      _ <- submitPartialToEtmp(regId, confRefs.acknowledgementReference, partialSubmissionAsJson, authProvId)
       _ = auditUserPartialSubmission(regId, authProvId, partialSubmissionAsJson, doc)
       success <- cTRegistrationRepository.updateRegistrationToHeld(regId, confRefs) map (_.isDefined)
     } yield success
   }
 
 
-  private[services] def buildPartialDesSubmission(regId: String, ackRef: String, authProvId: String, brMetadata: BusinessRegistration, ctData: CorporationTaxRegistration)
-                                                 (implicit hc: HeaderCarrier): InterimDesRegistration = {
+  private[services] def buildPartialEtmpSubmission(regId: String, ackRef: String, authProvId: String, brMetadata: BusinessRegistration, ctData: CorporationTaxRegistration)
+                                                  (implicit hc: HeaderCarrier): InterimEtmpRegistration = {
     val (sessionID, credID): (String, String) = hc.sessionId match {
       case Some(sesID) => (sesID.value, authProvId)
       case None => ctData.sessionIdentifiers match {
         case Some(sessionIdentifiers) => (sessionIdentifiers.sessionId, sessionIdentifiers.credId)
-        case None => throw new RuntimeException(s"[buildPartialDesSubmission] No session identifiers available for ETMP submission")
+        case None => throw new RuntimeException(s"[buildPartialEtmpSubmission] No session identifiers available for ETMP submission")
       }
     }
 
-    val companyDetails = ctData.companyDetails.getOrElse(throw new RuntimeException("[buildPartialDesSubmission] no company details found in ct doc when building partial des submission"))
-    val contactDetails = ctData.contactDetails.getOrElse(throw new RuntimeException("[buildPartialDesSubmission] no contact details found in ct doc when building partial des submission"))
-    val tradingDetails = ctData.tradingDetails.getOrElse(throw new RuntimeException("[buildPartialDesSubmission] no trading details found in ct doc when building partial des submission"))
+    val companyDetails = ctData.companyDetails.getOrElse(throw new RuntimeException("[buildPartialEtmpSubmission] no company details found in ct doc when building partial des submission"))
+    val contactDetails = ctData.contactDetails.getOrElse(throw new RuntimeException("[buildPartialEtmpSubmission] no contact details found in ct doc when building partial des submission"))
+    val tradingDetails = ctData.tradingDetails.getOrElse(throw new RuntimeException("[buildPartialEtmpSubmission] no trading details found in ct doc when building partial des submission"))
     val completionCapacity = CompletionCapacity(
-      brMetadata.completionCapacity.getOrElse(throw new RuntimeException("[buildPartialDesSubmission] no completion Capacity found in br when building partial des submission"))
+      brMetadata.completionCapacity.getOrElse(throw new RuntimeException("[buildPartialEtmpSubmission] no completion Capacity found in br when building partial des submission"))
     )
 
     val optPPOBAddress: Option[PPOBAddress] = companyDetails.ppob match {
@@ -220,7 +220,7 @@ trait SubmissionService extends DateHelper with Logging {
 
     val businessContactDetails = BusinessContactDetails(contactDetails.phone, contactDetails.mobile, contactDetails.email)
 
-    InterimDesRegistration(
+    InterimEtmpRegistration(
       ackRef = ackRef,
       metadata = Metadata(
         sessionId = sessionID,
@@ -240,8 +240,8 @@ trait SubmissionService extends DateHelper with Logging {
     )
   }
 
-  private[services] def submitPartialToDES(regId: String, ackRef: String, partialSubmission: JsObject, authProvId: String)
-                                          (implicit hc: HeaderCarrier): Future[HttpResponse] = {
+  private[services] def submitPartialToEtmp(regId: String, ackRef: String, partialSubmission: JsObject, authProvId: String)
+                                           (implicit hc: HeaderCarrier): Future[HttpResponse] = {
     submissionEventService.ctSubmission(ackRef, partialSubmission, regId) recoverWith {
       case e =>
         hc.sessionId match {

@@ -171,7 +171,7 @@ trait ProcessIncorporationService extends DateHelper with HttpErrorFunctions wit
           ) recover {
           case e =>
             logger.error(s"[updateHeldSubmission] Submission to ${microserviceAppConfig.etmpRoute}" +
-              " failed for ack ref $ackRef. Corresponding RegID: $journeyId and Transaction ID: ${item.transactionId}")
+              s" failed for ack ref $ackRef. Corresponding RegID: $journeyId and Transaction ID: ${item.transactionId}")
             throw e
         }
       case None =>
@@ -212,7 +212,7 @@ trait ProcessIncorporationService extends DateHelper with HttpErrorFunctions wit
     item.incorpDate match {
       case Some(_) =>
         calculateDates(item, ctReg.accountingDetails, ctReg.accountsPreparation) flatMap { dates =>
-          auditService.sendEvent("ctRegistrationAdditionalData", DesTopUpSubmissionEventDetail(
+          auditService.sendEvent("ctRegistrationAdditionalData", EtmpTopUpSubmissionEventDetail(
             ctReg.registrationID,
             ctReg.confirmationReferences.get.acknowledgementReference,
             "Accepted",
@@ -223,7 +223,7 @@ trait ProcessIncorporationService extends DateHelper with HttpErrorFunctions wit
           ))
         }
       case None =>
-        auditService.sendEvent("ctRegistrationAdditionalData", DesTopUpSubmissionEventDetail(
+        auditService.sendEvent("ctRegistrationAdditionalData", EtmpTopUpSubmissionEventDetail(
           ctReg.registrationID,
           ctReg.confirmationReferences.get.acknowledgementReference,
           "Rejected",

@@ -23,7 +23,7 @@ import play.api.libs.json.{JsObject, Json}
 import java.time.Instant
 
 
-class InterimDesRegistrationSpec extends PlaySpec {
+class InterimEtmpRegistrationSpec extends PlaySpec {
 
   "CompletionCapacity" must {
     "Construct a director" in { CompletionCapacity("Director") mustBe Director }
@@ -186,7 +186,7 @@ class InterimDesRegistrationSpec extends PlaySpec {
 
   }
 
-  "The Interim Des Registration model" must {
+  "The Interim Etmp Registration model" must {
 
     "Be able to be parsed into JSON when groups is NONE" in {
 
@@ -250,9 +250,9 @@ class InterimDesRegistrationSpec extends PlaySpec {
         groups = None
       )
 
-      val testModel1 = InterimDesRegistration( "ackRef1", testMetadata, testInterimCorporationTax)
+      val testModel1 = InterimEtmpRegistration( "ackRef1", testMetadata, testInterimCorporationTax)
 
-      val result = Json.toJson[InterimDesRegistration](testModel1)
+      val result = Json.toJson[InterimEtmpRegistration](testModel1)
       result.getClass mustBe classOf[JsObject]
       result mustBe Json.parse(expectedJson)
     }
@@ -340,9 +340,9 @@ class InterimDesRegistrationSpec extends PlaySpec {
         desBusinessContactContactDetails,
         groups = validGroups
       )
-      val testModel1 = InterimDesRegistration( "ackRef1", testMetadata, testInterimCorporationTax)
+      val testModel1 = InterimEtmpRegistration( "ackRef1", testMetadata, testInterimCorporationTax)
 
-      val result = Json.toJson[InterimDesRegistration](testModel1)
+      val result = Json.toJson[InterimEtmpRegistration](testModel1)
       result.getClass mustBe classOf[JsObject]
       result mustBe Json.parse(expectedJson)
     }
@@ -409,9 +409,9 @@ class InterimDesRegistrationSpec extends PlaySpec {
         desBusinessContactContactDetails,
         groups = validGroups
       )
-      val testModel1 = InterimDesRegistration( "ackRef1", testMetadata, testInterimCorporationTax)
+      val testModel1 = InterimEtmpRegistration( "ackRef1", testMetadata, testInterimCorporationTax)
 
-      val result = Json.toJson[InterimDesRegistration](testModel1)
+      val result = Json.toJson[InterimEtmpRegistration](testModel1)
       result.getClass mustBe classOf[JsObject]
       result mustBe Json.parse(expectedJson)
     }
@@ -499,9 +499,9 @@ class InterimDesRegistrationSpec extends PlaySpec {
         desBusinessContactContactDetails,
         groups = validGroups
       )
-      val testModel1 = InterimDesRegistration( "ackRef1", testMetadata, testInterimCorporationTax)
+      val testModel1 = InterimEtmpRegistration( "ackRef1", testMetadata, testInterimCorporationTax)
 
-      val result = Json.toJson[InterimDesRegistration](testModel1)
+      val result = Json.toJson[InterimEtmpRegistration](testModel1)
       result.getClass mustBe classOf[JsObject]
       result mustBe Json.parse(expectedJson)
     }
@@ -634,9 +634,9 @@ class InterimDesRegistrationSpec extends PlaySpec {
         groups = validGroups,
         takeOver = validTakeover
       )
-      val testModel1 = InterimDesRegistration( "ackRef1", testMetadata, testInterimCorporationTax)
+      val testModel1 = InterimEtmpRegistration( "ackRef1", testMetadata, testInterimCorporationTax)
 
-      val result = Json.toJson[InterimDesRegistration](testModel1)
+      val result = Json.toJson[InterimEtmpRegistration](testModel1)
       result.getClass mustBe classOf[JsObject]
       result mustBe Json.parse(expectedJson)
     }
@@ -690,9 +690,9 @@ class InterimDesRegistrationSpec extends PlaySpec {
         desBusinessContactContactDetails
       )
 
-      val testModel1 = InterimDesRegistration( "ackRef1", testMetadata, testInterimCorporationTax)
+      val testModel1 = InterimEtmpRegistration( "ackRef1", testMetadata, testInterimCorporationTax)
 
-      val result = Json.toJson[InterimDesRegistration](testModel1)
+      val result = Json.toJson[InterimEtmpRegistration](testModel1)
       result.getClass mustBe classOf[JsObject]
       result mustBe Json.parse(expectedJson)
     }
@@ -737,9 +737,9 @@ class InterimDesRegistrationSpec extends PlaySpec {
                 desBusinessContactContactDetails
                 )
       
-              val testModel1 = InterimDesRegistration( "ackRef1", testMetadata, testInterimCorporationTax)
+              val testModel1 = InterimEtmpRegistration( "ackRef1", testMetadata, testInterimCorporationTax)
       
-              val result = Json.toJson[InterimDesRegistration](testModel1)
+              val result = Json.toJson[InterimEtmpRegistration](testModel1)
             result.getClass mustBe classOf[JsObject]
             result mustBe Json.parse(expectedJson)
           }
@@ -787,9 +787,9 @@ class InterimDesRegistrationSpec extends PlaySpec {
                 desBusinessContactContactDetails
                 )
       
-              val testModel1 = InterimDesRegistration( "ackRef1", testMetadata, testInterimCorporationTax)
+              val testModel1 = InterimEtmpRegistration( "ackRef1", testMetadata, testInterimCorporationTax)
       
-              val result = Json.toJson[InterimDesRegistration](testModel1)
+              val result = Json.toJson[InterimEtmpRegistration](testModel1)
             result.getClass mustBe classOf[JsObject]
             result mustBe Json.parse(expectedJson)
           }

@@ -39,8 +39,8 @@ class HipConnectorSpec extends BaseSpec with WSHttpClientV2Mock {
     val hipClientId = "test"
     val hipClientSecret = "testAuth"
 
-    val brUrl = url"$serviceURL/business-registration/corporation-tax"
-    val biUrl = url"$serviceURL/business-incorporation/corporation-tax"
+    val busReqUrl = url"$serviceURL/RESTAdapter/business-registration/corporation-tax"
+    val busIncUrl = url"$serviceURL/RESTAdapter/business-incorporation/corporation-tax"
 
     val mockMicroserviceAppConfig: MicroserviceAppConfig = mock[MicroserviceAppConfig]
     val connector: HipConnector = new HipConnector(mockMicroserviceAppConfig, mockHttpClientV2)(ec)
@@ -58,52 +58,52 @@ class HipConnectorSpec extends BaseSpec with WSHttpClientV2Mock {
     implicit val hc: HeaderCarrier = new HeaderCarrier(sessionId = Some(SessionId(s"session-${UUID.randomUUID}")))
 
     "for accepted submission, return success" in new Setup {
-      mockHttpPost(brUrl, submissionJson, HttpResponse(202, submissionJson, Map.empty))
+      mockHttpPost(busReqUrl, submissionJson, HttpResponse(202, submissionJson, Map.empty))
 
       val result: HttpResponse = await(connector.ctSubmission("", submissionJson, "testJID"))
       result.status mustBe 202
-      verify(mockHttpClientV2, times(1)).post(eqTo(brUrl))(eqTo(hc))
+      verify(mockHttpClientV2, times(1)).post(eqTo(busReqUrl))(eqTo(hc))
     }
 
     "for topup submission, return success" in new Setup {
-      mockHttpPost(biUrl, submissionJson, HttpResponse(202, submissionJson, Map.empty))
+      mockHttpPost(busIncUrl, submissionJson, HttpResponse(202, submissionJson, Map.empty))
 
       val result: HttpResponse = await(connector.topUpCTSubmission("", submissionJson, "testJID"))
       result.status mustBe 202
-      verify(mockHttpClientV2, times(1)).post(eqTo(biUrl))(eqTo(hc))
+      verify(mockHttpClientV2, times(1)).post(eqTo(busIncUrl))(eqTo(hc))
     }
 
     "for a forbidden request, return a bad request" in new Setup {
-      mockHttpPostError(brUrl, submissionJson, UpstreamErrorResponse("", 403, 400))
+      mockHttpPostError(busReqUrl, submissionJson, UpstreamErrorResponse("", 403, 400))
       intercept[UpstreamErrorResponse] {
         await(connector.ctSubmission("", submissionJson, "testJID"))
       }
-      verify(mockHttpClientV2, times(1)).post(eqTo(brUrl))(eqTo(hc))
+      verify(mockHttpClientV2, times(1)).post(eqTo(busReqUrl))(eqTo(hc))
     }
 
     "for a forbidden topup request, return a bad request" in new Setup {
-      mockHttpPostError(biUrl, submissionJson, UpstreamErrorResponse("", 403, 400))
+      mockHttpPostError(busIncUrl, submissionJson, UpstreamErrorResponse("", 403, 400))
       intercept[UpstreamErrorResponse] {
         await(connector.topUpCTSubmission("", submissionJson, "testJID"))
       }
-      verify(mockHttpClientV2, times(1)).post(eqTo(biUrl))(eqTo(hc))
+      verify(mockHttpClientV2, times(1)).post(eqTo(busIncUrl))(eqTo(hc))
     }
 
 
     "for a client request timeout, return unavailable" in new Setup {
-      mockHttpPostError(brUrl, submissionJson, UpstreamErrorResponse("", 499, 502))  //check if HIP can produce a 499
+      mockHttpPostError(busReqUrl, submissionJson, UpstreamErrorResponse("", 499, 502))  //check if HIP can produce a 499
       intercept[UpstreamErrorResponse] {
         await(connector.ctSubmission("", submissionJson, "testJID"))
       }
-      verify(mockHttpClientV2, times(1)).post(eqTo(brUrl))(eqTo(hc))
+      verify(mockHttpClientV2, times(1)).post(eqTo(busReqUrl))(eqTo(hc))
     }
 
     "for a client topup request timeout, return unavailable" in new Setup {
-      mockHttpPostError(biUrl, submissionJson, UpstreamErrorResponse("", 499, 502))  //check if HIP can produce a 499
+      mockHttpPostError(busIncUrl, submissionJson, UpstreamErrorResponse("", 499, 502))  //check if HIP can produce a 499
       intercept[UpstreamErrorResponse] {
         await(connector.topUpCTSubmission("", submissionJson, "testJID"))
       }
-      verify(mockHttpClientV2, times(1)).post(eqTo(biUrl))(eqTo(hc))
+      verify(mockHttpClientV2, times(1)).post(eqTo(busIncUrl))(eqTo(hc))
     }
   }
 

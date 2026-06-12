@@ -16,6 +16,7 @@
 
 package connectors
 
+import com.google.inject.Singleton
 import config.MicroserviceAppConfig
 import play.api.libs.json.JsObject
 import uk.gov.hmrc.http.{HeaderCarrier, HttpResponse}
@@ -23,6 +24,7 @@ import uk.gov.hmrc.http.{HeaderCarrier, HttpResponse}
 import javax.inject.Inject
 import scala.concurrent.Future
 
+@Singleton
 class RoutingConnector @Inject()(
                                   appConfig: MicroserviceAppConfig,
                                   desConnector: DesConnector,

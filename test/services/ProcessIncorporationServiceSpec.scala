@@ -199,9 +199,9 @@ class ProcessIncorporationServiceSpec extends PlaySpec with MockitoSugar with Co
   val acceptedStatus = "Accepted"
   val rejectedStatus = "Rejected"
   val interimSubmission: JsObject = Json.parse(sub(testAckRef)).as[JsObject]
-  val validDesSubmission: JsObject = Json.parse(sub(testAckRef, Some((crn, exampleDate, exampleDate1, exampleDate2)))).as[JsObject]
-  val validTopUpDesSubmission: JsObject = Json.parse(topUpSub(acceptedStatus, testAckRef, crn, exampleDate, exampleDate1, exampleDate2)).as[JsObject]
-  val validRejectedTopUpDesSubmission: JsObject = Json.parse(topUpRejSub(rejectedStatus, testAckRef)).as[JsObject]
+  val validEtmpSubmission: JsObject = Json.parse(sub(testAckRef, Some((crn, exampleDate, exampleDate1, exampleDate2)))).as[JsObject]
+  val validTopUpEtmpSubmission: JsObject = Json.parse(topUpSub(acceptedStatus, testAckRef, crn, exampleDate, exampleDate1, exampleDate2)).as[JsObject]
+  val validRejectedTopUpEtmpSubmission: JsObject = Json.parse(topUpRejSub(rejectedStatus, testAckRef)).as[JsObject]
 
   "formatDate" must {
     "format a LocalDate into the format yyyy-mm-dd" in new Setup {

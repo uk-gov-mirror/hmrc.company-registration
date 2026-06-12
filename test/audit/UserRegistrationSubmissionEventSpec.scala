@@ -83,7 +83,7 @@ class UserRegistrationSubmissionEventSpec extends PlaySpec {
         Some(transactionId),
         Some(uprn),
         "LOOKUP",
-        Json.toJson(InterimDesRegistration(
+        Json.toJson(InterimEtmpRegistration(
           ackRef,
           Metadata(
             "sessionId", "credId", "eng", Instant.parse(timestamp), CompletionCapacity("Director")
@@ -140,7 +140,7 @@ class UserRegistrationSubmissionEventSpec extends PlaySpec {
         None,
         Some(uprn),
         "LOOKUP",
-        Json.toJson(InterimDesRegistration(
+        Json.toJson(InterimEtmpRegistration(
           ackRef,
           Metadata(
             "sessionId", "credId", "eng", Instant.parse(timestamp), CompletionCapacity("Director")
