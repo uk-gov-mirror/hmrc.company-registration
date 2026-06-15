@@ -215,7 +215,7 @@ trait AdminService extends ScheduledService[Either[Int, LockResponse]] with Date
       val ackRef = confRefs.acknowledgementReference
       for {
         _ <- desConnector.topUpCTSubmission(ackRef, submission(ackRef), info.regId)
-        _ <- auditService.sendEvent("ctRegistrationAdditionalData", EtmpTopUpSubmissionEventDetail(
+        _ <- auditService.sendEvent("ctRegistrationAdditionalData", ApiTopUpSubmissionEventDetail(
           info.regId,
           ackRef,
           "Rejected",

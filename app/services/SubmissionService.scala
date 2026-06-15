@@ -103,10 +103,10 @@ trait SubmissionService extends DateHelper with Logging {
     }
   }
 
-  def updateCTRecordWithAckRefs(ackRef: String, etmpNotification: AcknowledgementReferences): Future[Option[CorporationTaxRegistration]] = {
+  def updateCTRecordWithAckRefs(ackRef: String, apiNotification: AcknowledgementReferences): Future[Option[CorporationTaxRegistration]] = {
     cTRegistrationRepository.findOneBySelector(cTRegistrationRepository.ackRefSelector(ackRef)) flatMap {
       case Some(record) =>
-        cTRegistrationRepository.updateCTRecordWithAcknowledgments(ackRef, record.copy(acknowledgementReferences = Some(etmpNotification), status = RegistrationStatus.ACKNOWLEDGED)) map {
+        cTRegistrationRepository.updateCTRecordWithAcknowledgments(ackRef, record.copy(acknowledgementReferences = Some(apiNotification), status = RegistrationStatus.ACKNOWLEDGED)) map {
           _ => Some(record)
         }
       case None =>
@@ -148,31 +148,31 @@ trait SubmissionService extends DateHelper with Logging {
                                                 (implicit hc: HeaderCarrier, req: Request[AnyContent]): Future[Boolean] = {
     for {
       brMetadata <- retrieveBRMetadata(regId, isAdmin)
-      partialSubmission = buildPartialEtmpSubmission(regId, confRefs.acknowledgementReference, authProvId, brMetadata, doc)
+      partialSubmission = buildPartialApiSubmission(regId, confRefs.acknowledgementReference, authProvId, brMetadata, doc)
       partialSubmissionAsJson = Json.toJson(partialSubmission).as[JsObject]
       _ <- incorpInfoConnector.registerInterest(regId, confRefs.transactionId)
-      _ <- submitPartialToEtmp(regId, confRefs.acknowledgementReference, partialSubmissionAsJson, authProvId)
+      _ <- submitPartialToApi(regId, confRefs.acknowledgementReference, partialSubmissionAsJson, authProvId)
       _ = auditUserPartialSubmission(regId, authProvId, partialSubmissionAsJson, doc)
       success <- cTRegistrationRepository.updateRegistrationToHeld(regId, confRefs) map (_.isDefined)
     } yield success
   }
 
 
-  private[services] def buildPartialEtmpSubmission(regId: String, ackRef: String, authProvId: String, brMetadata: BusinessRegistration, ctData: CorporationTaxRegistration)
-                                                  (implicit hc: HeaderCarrier): InterimEtmpRegistration = {
+  private[services] def buildPartialApiSubmission(regId: String, ackRef: String, authProvId: String, brMetadata: BusinessRegistration, ctData: CorporationTaxRegistration)
+                                                 (implicit hc: HeaderCarrier): InterimApiRegistration = {
     val (sessionID, credID): (String, String) = hc.sessionId match {
       case Some(sesID) => (sesID.value, authProvId)
       case None => ctData.sessionIdentifiers match {
         case Some(sessionIdentifiers) => (sessionIdentifiers.sessionId, sessionIdentifiers.credId)
-        case None => throw new RuntimeException(s"[buildPartialEtmpSubmission] No session identifiers available for ETMP submission")
+        case None => throw new RuntimeException(s"[buildPartialApiSubmission] No session identifiers available for API submission")
       }
     }
 
-    val companyDetails = ctData.companyDetails.getOrElse(throw new RuntimeException("[buildPartialEtmpSubmission] no company details found in ct doc when building partial des submission"))
-    val contactDetails = ctData.contactDetails.getOrElse(throw new RuntimeException("[buildPartialEtmpSubmission] no contact details found in ct doc when building partial des submission"))
-    val tradingDetails = ctData.tradingDetails.getOrElse(throw new RuntimeException("[buildPartialEtmpSubmission] no trading details found in ct doc when building partial des submission"))
+    val companyDetails = ctData.companyDetails.getOrElse(throw new RuntimeException("[buildPartialApiSubmission] no company details found in ct doc when building partial des submission"))
+    val contactDetails = ctData.contactDetails.getOrElse(throw new RuntimeException("[buildPartialApiSubmission] no contact details found in ct doc when building partial des submission"))
+    val tradingDetails = ctData.tradingDetails.getOrElse(throw new RuntimeException("[buildPartialApiSubmission] no trading details found in ct doc when building partial des submission"))
     val completionCapacity = CompletionCapacity(
-      brMetadata.completionCapacity.getOrElse(throw new RuntimeException("[buildPartialEtmpSubmission] no completion Capacity found in br when building partial des submission"))
+      brMetadata.completionCapacity.getOrElse(throw new RuntimeException("[buildPartialApiSubmission] no completion Capacity found in br when building partial des submission"))
     )
 
     val optPPOBAddress: Option[PPOBAddress] = companyDetails.ppob match {
@@ -220,7 +220,7 @@ trait SubmissionService extends DateHelper with Logging {
 
     val businessContactDetails = BusinessContactDetails(contactDetails.phone, contactDetails.mobile, contactDetails.email)
 
-    InterimEtmpRegistration(
+    InterimApiRegistration(
       ackRef = ackRef,
       metadata = Metadata(
         sessionId = sessionID,
@@ -240,8 +240,8 @@ trait SubmissionService extends DateHelper with Logging {
     )
   }
 
-  private[services] def submitPartialToEtmp(regId: String, ackRef: String, partialSubmission: JsObject, authProvId: String)
-                                           (implicit hc: HeaderCarrier): Future[HttpResponse] = {
+  private[services] def submitPartialToApi(regId: String, ackRef: String, partialSubmission: JsObject, authProvId: String)
+                                          (implicit hc: HeaderCarrier): Future[HttpResponse] = {
     submissionEventService.ctSubmission(ackRef, partialSubmission, regId) recoverWith {
       case e =>
         hc.sessionId match {
@@ -259,7 +259,7 @@ trait SubmissionService extends DateHelper with Logging {
                                                   (implicit hc: HeaderCarrier, req: Request[AnyContent]): Future[AuditResult] = {
     import PPOB.RO
 
-    val ppob = doc.companyDetails.getOrElse(throw new RuntimeException(s"Could not retrieve Company Registration after ETMP Submission for $regId")).ppob
+    val ppob = doc.companyDetails.getOrElse(throw new RuntimeException(s"Could not retrieve Company Registration after API Submission for $regId")).ppob
     val (txID, uprn) = (ppob.addressType, ppob.address) match {
       case (RO, _) => (None, None)
       case (_, Some(address)) => (Some(address.txid), address.uprn)

@@ -25,7 +25,7 @@ import play.api.libs.json._
 import java.time.Instant
 import java.time.format.{DateTimeFormatter, DateTimeFormatterBuilder}
 
-object EtmpFormats {
+object ApiFormats {
 
   private val datetime: DateTimeFormatter = new DateTimeFormatterBuilder().appendInstant(3).toFormatter
 
@@ -158,7 +158,7 @@ case class Metadata(sessionId: String,
 
 object Metadata {
 
-  import EtmpFormats._
+  import ApiFormats._
 
   implicit val writes: Writes[Metadata] = (metadata: Metadata) => {
     Json.obj(
@@ -239,14 +239,14 @@ object InterimCorporationTax {
 
 }
 
-case class InterimEtmpRegistration(ackRef: String,
-                                   metadata: Metadata,
-                                   interimCorporationTax: InterimCorporationTax)
+case class InterimApiRegistration(ackRef: String,
+                                  metadata: Metadata,
+                                  interimCorporationTax: InterimCorporationTax)
 
-object InterimEtmpRegistration {
-  implicit val writes: Writes[InterimEtmpRegistration] = (
+object InterimApiRegistration {
+  implicit val writes: Writes[InterimApiRegistration] = (
     (__ \ "acknowledgementReference").write[String] and
       (__ \ "registration" \ "metadata").write[Metadata] and
       (__ \ "registration" \ "corporationTax").write[InterimCorporationTax]
-    ) (unlift(InterimEtmpRegistration.unapply))
+    ) (unlift(InterimApiRegistration.unapply))
 }

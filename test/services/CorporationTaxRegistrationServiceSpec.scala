@@ -111,7 +111,7 @@ class CorporationTaxRegistrationServiceSpec extends BaseSpec with AuthorisationM
     )
   }
 
-  def partialEtmpSubmission(ackRef: String, timestamp: String = "2016-10-27T17:06:23.000Z"): JsObject = Json.parse(
+  def partialApiSubmission(ackRef: String, timestamp: String = "2016-10-27T17:06:23.000Z"): JsObject = Json.parse(
     s"""
        |{
        | "acknowledgementReference":"$ackRef",

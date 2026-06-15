@@ -34,10 +34,10 @@ class ProcessIncorporationsController @Inject()(processIncorporationService: Pro
                                                 controllerComponents: ControllerComponents
                                                )(implicit val ec: ExecutionContext) extends BackendController(controllerComponents) with Logging {
 
-  lazy val etmpRoute = appConfig.etmpRoute
+  lazy val apiRoute = appConfig.apiRoute
 
   private def logFailedTopup(txId: String, method: String): Unit =
-    logger.error(s"[$method] FAILED_${etmpRoute}_TOPUP - Topup failed for transaction ID: $txId")
+    logger.error(s"[$method] FAILED_${apiRoute}_TOPUP - Topup failed for transaction ID: $txId")
 
   def processIncorporationNotification: Action[JsValue] = Action.async[JsValue](parse.json) {
     implicit request =>

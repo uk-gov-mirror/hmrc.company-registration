@@ -67,12 +67,12 @@ class SubmissionController @Inject()(val metricsService: MetricsService,
   def acknowledgementConfirmation(ackRef: String): Action[JsValue] = Action.async[JsValue](parse.json) {
     logger.debug(s"[CorporationTaxRegistrationController] [acknowledgementConfirmation] confirming for ack $ackRef")
     implicit request =>
-      withJsonBody[AcknowledgementReferences] { etmpNotification =>
+      withJsonBody[AcknowledgementReferences] { apiNotification =>
 
-        (etmpNotification.ctUtr.isDefined, etmpNotification.status) match {
+        (apiNotification.ctUtr.isDefined, apiNotification.status) match {
           case accepted@(true, "04" | "05") =>
             val timer = metricsService.acknowledgementConfirmationCRTimer.time()
-            submissionService.updateCTRecordWithAckRefs(ackRef, etmpNotification) map {
+            submissionService.updateCTRecordWithAckRefs(ackRef, apiNotification) map {
               case Some(_) =>
                 timer.stop()
                 metricsService.ctutrConfirmationCounter.inc(1)
@@ -82,13 +82,13 @@ class SubmissionController @Inject()(val metricsService: MetricsService,
                 NotFound(s"Document not found for Ack ref: $ackRef")
             }
           case rejected@(_, "06" | "07" | "08" | "09" | "10") =>
-            alertLogging.pagerduty(PagerDutyKeys.CT_REJECTED, Some(s"Received a Rejected response code (${etmpNotification.status}) from ETMP for ackRef: $ackRef"))
-            submissionService.updateCTRecordWithAckRefs(ackRef, etmpNotification.copy(ctUtr = None)) map { _ => Ok }
+            alertLogging.pagerduty(PagerDutyKeys.CT_REJECTED, Some(s"Received a Rejected response code (${apiNotification.status}) from Gateway for ackRef: $ackRef"))
+            submissionService.updateCTRecordWithAckRefs(ackRef, apiNotification.copy(ctUtr = None)) map { _ => Ok }
           case missingCTUTR@(_, "04" | "05") =>
-            alertLogging.pagerduty(PagerDutyKeys.CT_ACCEPTED_MISSING_UTR, Some(s"Received an Accepted response code (${etmpNotification.status}) from ETMP without a CTUTR for ackRef: $ackRef"))
+            alertLogging.pagerduty(PagerDutyKeys.CT_ACCEPTED_MISSING_UTR, Some(s"Received an Accepted response code (${apiNotification.status}) from Gateway without a CTUTR for ackRef: $ackRef"))
             Future.successful(BadRequest(s"Accepted but no CTUTR provided for ackRef: $ackRef"))
           case unrecognised =>
-            Future.failed(new RuntimeException(s"Unknown notification code (${etmpNotification.status}) received from ETMP for ackRef: $ackRef"))
+            Future.failed(new RuntimeException(s"Unknown notification code (${apiNotification.status}) received from Gateway for ackRef: $ackRef"))
         }
       }(implicitly, implicitly, AcknowledgementReferences.format(APIValidation, cryptoSCRS))
   }

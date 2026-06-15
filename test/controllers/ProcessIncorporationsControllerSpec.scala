@@ -152,17 +152,17 @@ class ProcessIncorporationsControllerSpec extends PlaySpec with MockitoSugar wit
   }
 
   "Failing Topup" must {
-    for (etmpRoute <- Seq("DES", "HIP")) {
-      s"log the correct $etmpRoute error message" in new Setup {
+    for (apiRoute <- Seq("DES", "HIP")) {
+      s"log the correct $apiRoute error message" in new Setup {
         when(mockProcessIncorporationService.processIncorporationUpdate(any(), any())(any())).thenReturn(Future.failed(new RuntimeException))
-        when(mockMicroserviceAppConfig.etmpRoute).thenReturn(etmpRoute)
+        when(mockMicroserviceAppConfig.apiRoute).thenReturn(apiRoute)
 
         val request: FakeRequest[JsObject] = FakeRequest().withBody[JsObject](rejectedIncorpJson)
         withCaptureOfLoggingFrom(Controller.logger) { logEvents =>
           intercept[RuntimeException](await(call(Controller.processIncorporationNotification, request)))
           eventually {
             logEvents.size mustBe 1
-            logEvents.head.getMessage mustBe s"[Controller][processIncorporationNotification] FAILED_${etmpRoute}_TOPUP - Topup failed for transaction ID: trans-12345"
+            logEvents.head.getMessage mustBe s"[Controller][processIncorporationNotification] FAILED_${apiRoute}_TOPUP - Topup failed for transaction ID: trans-12345"
           }
         }
       }

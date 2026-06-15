@@ -387,9 +387,9 @@ class CorporationTaxRegistrationMongoRepository @Inject()(val mongo: MongoCompon
     } yield {
       for {
         document <- maybeRegistration
-        etmpAckRefs <- document.acknowledgementReferences
+        apiAckRefs <- document.acknowledgementReferences
       } yield {
-        etmpAckRefs.status -> etmpAckRefs.ctUtr.isDefined
+        apiAckRefs.status -> apiAckRefs.ctUtr.isDefined
       }
     }
   }

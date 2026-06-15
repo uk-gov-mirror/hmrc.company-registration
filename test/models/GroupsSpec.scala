@@ -156,7 +156,7 @@ class GroupsSpec extends BaseSpec with LogCapturingHelper {
           |{
           |   "groupRelief": true,
           |   "nameOfCompany": {
-          |     "name": "This is longerÆ than 20 characters but thats fine because it can be normalised and trimmed to 20 chars and matches Etmp regex",
+          |     "name": "This is longerÆ than 20 characters but thats fine because it can be normalised and trimmed to 20 chars and matches gateway regex",
           |     "nameType" : "CohoEntered"
           |   }
           |}
@@ -170,7 +170,7 @@ class GroupsSpec extends BaseSpec with LogCapturingHelper {
         res mustBe Groups(
           groupRelief = true,
           nameOfCompany = Some(GroupCompanyName(
-            "This is longerÆ than 20 characters but thats fine because it can be normalised and trimmed to 20 chars and matches Etmp regex",
+            "This is longerÆ than 20 characters but thats fine because it can be normalised and trimmed to 20 chars and matches gateway regex",
             GroupCompanyNameEnum.CohoEntered)),
           None,
           None)
@@ -301,7 +301,7 @@ class GroupsSpec extends BaseSpec with LogCapturingHelper {
         error => error.head._2.head.message == message, _ => false)
       resToBeSure mustBe true
     }
-    "NOT read json if name is > 20 Chars and it does not pass the Etmp regex after normalisation and trim, also log a message as cohos validation is invalid" in {
+    "NOT read json if name is > 20 Chars and it does not pass the gateway regex after normalisation and trim, also log a message as cohos validation is invalid" in {
       val groupJsonNameOfCompanyInvalidFor20chars = Json.parse(
         """
           |{

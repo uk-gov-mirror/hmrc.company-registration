@@ -234,18 +234,18 @@ class ProcessIncorporationsControllerISpec extends IntegrationSpecBase with Mong
        |}
        """.stripMargin).as[JsObject]
 
-  def stubEtmpPost(status: Int, submission: String): StubMapping = stubPost("/business-registration/corporation-tax", status, submission)
+  def stubApiPost(status: Int, submission: String): StubMapping = stubPost("/business-registration/corporation-tax", status, submission)
 
   def stubEmailPost(status: Int): StubMapping = stubPost("/hmrc/email", status, "")
 
-  def stubEtmpTopUpPost(status: Int, submission: String): StubMapping = stubPost("/business-incorporation/corporation-tax", status, submission)
+  def stubApiTopUpPost(status: Int, submission: String): StubMapping = stubPost("/business-incorporation/corporation-tax", status, submission)
 
   "Process Incorporation" must {
 
     val processIncorpPath = "/process-incorp"
     val testIncorpDate = "2017-07-24"
 
-    "send a top up submission to ETMP with correct active date" when {
+    "send a top up submission to API with correct active date" when {
       "user has selected a Future Date for Accounting Dates before the incorporation date" in new Setup {
 
         ctRepository.insert(heldRegistration)
@@ -313,7 +313,7 @@ class ProcessIncorporationsControllerISpec extends IntegrationSpecBase with Mong
         import AccountingDetails.NOT_PLANNING_TO_YET
 
         val testIncorpDate = "2017-07-25"
-        val activeDateToEtmp = "1900-01-01"
+        val activeDateToApi = "1900-01-01"
         val heldRegistration2: CorporationTaxRegistration = heldRegistration.copy(
           accountingDetails = Some(heldRegistration.accountingDetails.get.copy(status = NOT_PLANNING_TO_YET, activeDate = None))
         )
@@ -331,7 +331,7 @@ class ProcessIncorporationsControllerISpec extends IntegrationSpecBase with Mong
         val crPosts: util.List[LoggedRequest] = findAll(postRequestedFor(urlMatching(s"/business-incorporation/corporation-tax")))
         val captor: LoggedRequest = crPosts.get(0)
         val json: JsValue = Json.parse(captor.getBodyAsString)
-        (json \ "corporationTax" \ "companyActiveDate").as[String] mustBe activeDateToEtmp
+        (json \ "corporationTax" \ "companyActiveDate").as[String] mustBe activeDateToApi
       }
     }
 
@@ -561,7 +561,7 @@ class ProcessIncorporationsControllerISpec extends IntegrationSpecBase with Mong
         setupSimpleAuthMocks()
         setupCTRegistration(heldRegistration)
 
-        stubEtmpTopUpPost(200, """{"test":"json"}""")
+        stubApiTopUpPost(200, """{"test":"json"}""")
         stubEmailPost(202)
 
         val response: Future[WSResponse] = client(processIncorpPath).post(jsonIncorpStatusRejected)
@@ -601,7 +601,7 @@ class ProcessIncorporationsControllerISpec extends IntegrationSpecBase with Mong
         setupSimpleAuthMocks()
         setupCTRegistration(heldRegistration.copy(status = "LOCKED", confirmationReferences = Some(confRefsWithoutPayment)))
 
-        stubEtmpTopUpPost(200, """{"test":"json"}""")
+        stubApiTopUpPost(200, """{"test":"json"}""")
         stubEmailPost(202)
 
         val response: Future[WSResponse] = client(processIncorpPath).post(jsonIncorpStatusRejected)
@@ -622,14 +622,14 @@ class ProcessIncorporationsControllerISpec extends IntegrationSpecBase with Mong
       }
     }
 
-    "send a top-up submission to ETMP if a matching held registration exists and a held submission does not exist" in new Setup {
+    "send a top-up submission to API if a matching held registration exists and a held submission does not exist" in new Setup {
 
       val jsonBodyFromII: String = jsonIncorpStatus(testIncorpDate)
 
       setupSimpleAuthMocks()
       setupCTRegistration(heldRegistration)
 
-      stubEtmpTopUpPost(200, """{"test":"json"}""")
+      stubApiTopUpPost(200, """{"test":"json"}""")
       stubEmailPost(202)
 
       val response: Future[WSResponse] = client(processIncorpPath).post(jsonBodyFromII)
@@ -641,7 +641,7 @@ class ProcessIncorporationsControllerISpec extends IntegrationSpecBase with Mong
       reg.status mustBe "submitted"
     }
 
-    "NOT send a top-up submission to ETMP if a matching registration exists as not held status" in new Setup {
+    "NOT send a top-up submission to API if a matching registration exists as not held status" in new Setup {
 
       val jsonBodyFromII: String = jsonIncorpStatus(testIncorpDate)
 
@@ -655,14 +655,14 @@ class ProcessIncorporationsControllerISpec extends IntegrationSpecBase with Mong
       await(response).status mustBe 500
     }
 
-    "return a 502 if the top-up submission to ETMP fails, then return a 200 when retried and the submission to ETMP is successful" in new Setup {
+    "return a 502 if the top-up submission to API fails, then return a 200 when retried and the submission to API is successful" in new Setup {
 
       val jsonBodyFromII: String = jsonIncorpStatus(testIncorpDate)
 
       setupSimpleAuthMocks()
       setupCTRegistration(heldRegistration)
 
-      stubEtmpTopUpPost(502, """{"test":"json for 502"}""")
+      stubApiTopUpPost(502, """{"test":"json for 502"}""")
       stubEmailPost(202)
 
       val response1: Future[WSResponse] = client(processIncorpPath).post(jsonBodyFromII)
@@ -672,7 +672,7 @@ class ProcessIncorporationsControllerISpec extends IntegrationSpecBase with Mong
       val reg1 :: _ = ctRepository.findAll
       reg1.status mustBe "held"
 
-      stubEtmpTopUpPost(200, """{"test":"json for 200"}""")
+      stubApiTopUpPost(200, """{"test":"json for 200"}""")
 
       val response2: Future[WSResponse] = client(processIncorpPath).post(jsonBodyFromII)
 

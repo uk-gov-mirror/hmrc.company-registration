@@ -115,7 +115,7 @@ class ContactDetailsSpec extends PlaySpec with JsonFormatValidation {
       result mustBe JsSuccess(contactDetails)
     }
 
-    "check with an email address containing a plus - that ETMP can't accept" in {
+    "check with an email address containing a plus - that the API can't accept" in {
       val json = """{"contactMobileNumber":"1234567890", "contactEmail":"xxx+xxx@xxx.com"}"""
       val result = Json.parse(json).validate[ContactDetails]
 

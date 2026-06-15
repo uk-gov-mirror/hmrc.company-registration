@@ -22,9 +22,9 @@ import play.api.libs.json.Json
 
 import java.time.LocalDate
 
-class EtmpTopUpEventSpec extends PlaySpec {
+class ApiTopUpEventSpec extends PlaySpec {
 
-  "EtmpTopUpEventDetail" must {
+  "ApiTopUpEventDetail" must {
 
     val regId = "123456789"
     val crn = "0123456789"
@@ -47,7 +47,7 @@ class EtmpTopUpEventSpec extends PlaySpec {
            |   }
         """.stripMargin)
 
-      val testModel = EtmpTopUpSubmissionEventDetail(
+      val testModel = ApiTopUpSubmissionEventDetail(
         regId,
         ackRef,
         accepted,
@@ -57,7 +57,7 @@ class EtmpTopUpEventSpec extends PlaySpec {
         Some(crn)
       )
 
-      Json.toJson(testModel)(EtmpTopUpSubmissionEventDetail.writes) mustBe expected
+      Json.toJson(testModel)(ApiTopUpSubmissionEventDetail.writes) mustBe expected
     }
 
 
@@ -71,7 +71,7 @@ class EtmpTopUpEventSpec extends PlaySpec {
            |   }
         """.stripMargin)
 
-      val testModel = EtmpTopUpSubmissionEventDetail(
+      val testModel = ApiTopUpSubmissionEventDetail(
         regId,
         ackRef,
         rejected,
@@ -80,7 +80,7 @@ class EtmpTopUpEventSpec extends PlaySpec {
         None,
         None
       )
-      Json.toJson(testModel)(EtmpTopUpSubmissionEventDetail.writes) mustBe expected
+      Json.toJson(testModel)(ApiTopUpSubmissionEventDetail.writes) mustBe expected
     }
   }
 }

@@ -199,9 +199,9 @@ class ProcessIncorporationServiceSpec extends PlaySpec with MockitoSugar with Co
   val acceptedStatus = "Accepted"
   val rejectedStatus = "Rejected"
   val interimSubmission: JsObject = Json.parse(sub(testAckRef)).as[JsObject]
-  val validEtmpSubmission: JsObject = Json.parse(sub(testAckRef, Some((crn, exampleDate, exampleDate1, exampleDate2)))).as[JsObject]
-  val validTopUpEtmpSubmission: JsObject = Json.parse(topUpSub(acceptedStatus, testAckRef, crn, exampleDate, exampleDate1, exampleDate2)).as[JsObject]
-  val validRejectedTopUpEtmpSubmission: JsObject = Json.parse(topUpRejSub(rejectedStatus, testAckRef)).as[JsObject]
+  val validApiSubmission: JsObject = Json.parse(sub(testAckRef, Some((crn, exampleDate, exampleDate1, exampleDate2)))).as[JsObject]
+  val validTopUpApiSubmission: JsObject = Json.parse(topUpSub(acceptedStatus, testAckRef, crn, exampleDate, exampleDate1, exampleDate2)).as[JsObject]
+  val validRejectedTopUpApiSubmission: JsObject = Json.parse(topUpRejSub(rejectedStatus, testAckRef)).as[JsObject]
 
   "formatDate" must {
     "format a LocalDate into the format yyyy-mm-dd" in new Setup {
@@ -422,8 +422,8 @@ class ProcessIncorporationServiceSpec extends PlaySpec with MockitoSugar with Co
       await(Service.processIncorporationUpdate(incorpRejected)) mustBe false
     }
 
-    for (etmpRoute <- Seq("DES", "HIP")) {
-      s"return an exception when processing a rejected incorporation and $etmpRoute returns a 500" in new Setup {
+    for (apiRoute <- Seq("DES", "HIP")) {
+      s"return an exception when processing a rejected incorporation and $apiRoute returns a 500" in new Setup {
         when(mockCTRepository.findOneBySelector(mockCTRepository.transIdSelector(ArgumentMatchers.eq(transId))))
           .thenReturn(Future.successful(Some(validCR)))
         when(mockCTRepository.updateSubmissionStatus(ArgumentMatchers.any(), ArgumentMatchers.any())).thenReturn(Future.successful("rejected"))
@@ -437,7 +437,7 @@ class ProcessIncorporationServiceSpec extends PlaySpec with MockitoSugar with Co
         )(ArgumentMatchers.any[HeaderCarrier](), ArgumentMatchers.eq(FailedIncorporationAuditEventDetail.format)))
           .thenReturn(Future.successful(Success))
         when(mockSubmissionEventService.topUpCTSubmission(ArgumentMatchers.any(), ArgumentMatchers.any(), ArgumentMatchers.any())(ArgumentMatchers.any()))
-          .thenReturn(Future.failed(new InternalServerException(s"$etmpRoute returned a 500")))
+          .thenReturn(Future.failed(new InternalServerException(s"$apiRoute returned a 500")))
         when(mockCTRepository.removeTaxRegistrationById(ArgumentMatchers.eq(validCR.registrationID)))
           .thenReturn(Future.successful(true))
         when(mockBRConnector.removeMetadata(ArgumentMatchers.eq(validCR.registrationID))(ArgumentMatchers.any()))

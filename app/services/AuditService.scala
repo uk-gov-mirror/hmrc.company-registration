@@ -16,7 +16,7 @@
 
 package services
 
-import audit.{CTRegistrationSubmissionAuditEventDetails, EtmpResponse, RegistrationAuditEventConstants}
+import audit.{CTRegistrationSubmissionAuditEventDetails, ApiResponse, RegistrationAuditEventConstants}
 import play.api.libs.json.{JsObject, Json, Writes}
 import uk.gov.hmrc.http.HeaderCarrier
 import uk.gov.hmrc.play.audit.AuditExtensions.auditHeaderCarrier
@@ -66,7 +66,7 @@ trait AuditService {
   }
 
   def ctRegSubmissionFromJson(journeyId: String, json: JsObject): CTRegistrationSubmissionAuditEventDetails = {
-    val des = json.as[EtmpResponse]
+    val des = json.as[ApiResponse]
     CTRegistrationSubmissionAuditEventDetails(
       journeyId,
       des.processingDate,

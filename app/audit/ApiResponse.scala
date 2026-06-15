@@ -18,10 +18,10 @@ package audit
 
 import play.api.libs.json.{Json, OFormat}
 
-case class EtmpResponse(processingDate: Option[String],
-                        acknowledgementReference: Option[String],
-                        reason: Option[String])
+case class ApiResponse(processingDate: Option[String],
+                       acknowledgementReference: Option[String],
+                       reason: Option[String])
 
-object EtmpResponse {
-  implicit val format: OFormat[EtmpResponse] = Json.format[EtmpResponse]
+object ApiResponse {
+  implicit val format: OFormat[ApiResponse] = Json.format[ApiResponse]
 }
