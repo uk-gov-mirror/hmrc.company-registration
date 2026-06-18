@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package models.des
+package models.api
 
 import models._
 import org.scalatestplus.play.PlaySpec

@@ -20,7 +20,7 @@ import cats.implicits._
 import connectors.{BusinessRegistrationConnector, IncorporationCheckAPIConnector, IncorporationInformationConnector}
 import helpers.DateHelper
 import jobs.{LockResponse, MongoLocked, ScheduledService, UnlockingFailed}
-import models.des.BusinessAddress
+import models.api.BusinessAddress
 import models.validation.APIValidation._
 import models.{HttpResponse => _, _}
 import repositories.{CorporationTaxRegistrationMongoRepository, Repositories, SequenceMongoRepository}

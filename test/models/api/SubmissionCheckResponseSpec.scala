@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package models.des
+package models.api
 
 import models.{IncorpUpdate, SubmissionCheckResponse}
 import org.scalatestplus.play.PlaySpec

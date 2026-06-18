@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package models.des
+package models.api
 
 import models.validation.APIValidation
 import models.{Groups, TakeoverDetails}

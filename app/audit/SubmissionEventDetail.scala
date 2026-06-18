@@ -16,7 +16,7 @@
 
 package audit
 
-import models.des.{BusinessAddress, BusinessContactDetails}
+import models.api.{BusinessAddress, BusinessContactDetails}
 import play.api.libs.json._
 
 case class SubmissionEventDetail(regId: String,

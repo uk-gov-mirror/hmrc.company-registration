@@ -18,7 +18,7 @@ package services
 
 import helpers.BaseSpec
 import models._
-import models.des.BusinessAddress
+import models.api.BusinessAddress
 import org.mockito.ArgumentMatchers.{eq => eqTo}
 import org.mockito.Mockito._
 import play.api.test.Helpers._

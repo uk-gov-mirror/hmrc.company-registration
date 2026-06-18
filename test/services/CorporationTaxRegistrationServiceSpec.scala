@@ -23,7 +23,7 @@ import helpers.BaseSpec
 import mocks.AuthorisationMocks
 import models.RegistrationStatus._
 import models._
-import models.des.BusinessAddress
+import models.api.BusinessAddress
 import org.mockito.ArgumentMatchers.{eq => eqTo}
 import org.mockito.Mockito._
 import org.scalatest.concurrent.Eventually

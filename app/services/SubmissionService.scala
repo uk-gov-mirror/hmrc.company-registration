@@ -22,7 +22,7 @@ import connectors.{BusinessRegistrationConnector, BusinessRegistrationSuccessRes
 import helpers.DateHelper
 import models.RegistrationStatus.{ACKNOWLEDGED, DRAFT, LOCKED, SUBMITTED}
 import models._
-import models.des._
+import models.api._
 import models.validation.APIValidation
 import play.api.libs.json.{JsObject, JsString, Json}
 import play.api.mvc.{AnyContent, Request}

@@ -16,7 +16,7 @@
 
 package audit
 
-import models.des._
+import models.api._
 import org.scalatestplus.play.PlaySpec
 import play.api.libs.json.{JsObject, Json}
 

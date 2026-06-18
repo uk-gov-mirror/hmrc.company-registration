@@ -26,7 +26,7 @@ import helpers.BaseSpec
 import mocks.AuthorisationMocks
 import models.RegistrationStatus._
 import models._
-import models.des._
+import models.api._
 import org.mockito.ArgumentMatchers
 import org.mockito.ArgumentMatchers.{any, eq => eqTo}
 import org.mockito.Mockito._
@@ -617,7 +617,7 @@ class SubmissionServiceSpec extends BaseSpec with AuthorisationMocks with Corpor
         ))
     }
 
-    "return a valid des submission if groups is provided but name needs normalising" in new Setup {
+    "return a valid api submission if groups is provided but name needs normalising" in new Setup {
 
       when(mockBRConnector.retrieveMetadataByRegId(ArgumentMatchers.any())(ArgumentMatchers.any()))
         .thenReturn(Future.successful(BusinessRegistrationSuccessResponse(businessRegistration)))
@@ -654,7 +654,7 @@ class SubmissionServiceSpec extends BaseSpec with AuthorisationMocks with Corpor
           )))
     }
 
-    "return a valid des submission if groups is provided but there are illegal characters in the address supplied by Coho" in new Setup {
+    "return a valid api submission if groups is provided but there are illegal characters in the address supplied by Coho" in new Setup {
 
       when(mockBRConnector.retrieveMetadataByRegId(ArgumentMatchers.any())(ArgumentMatchers.any()))
         .thenReturn(Future.successful(BusinessRegistrationSuccessResponse(businessRegistration)))
@@ -691,7 +691,7 @@ class SubmissionServiceSpec extends BaseSpec with AuthorisationMocks with Corpor
           )))
     }
 
-    "return a valid des submission if takeover block is provided" in new Setup {
+    "return a valid api submission if takeover block is provided" in new Setup {
       when(mockBRConnector.retrieveMetadataByRegId(ArgumentMatchers.any())(ArgumentMatchers.any()))
         .thenReturn(Future.successful(BusinessRegistrationSuccessResponse(businessRegistration)))
       when(mockCorpTaxRepo.findOneBySelector(mockCorpTaxRepo.regIDSelector(eqTo(registrationId))))
@@ -752,7 +752,7 @@ class SubmissionServiceSpec extends BaseSpec with AuthorisationMocks with Corpor
     }
 
 
-    "return a valid des submission if takeover block is provided with illegal characters in the previous business and owner names" in new Setup {
+    "return a valid api submission if takeover block is provided with illegal characters in the previous business and owner names" in new Setup {
       when(mockBRConnector.retrieveMetadataByRegId(ArgumentMatchers.any())(ArgumentMatchers.any()))
         .thenReturn(Future.successful(BusinessRegistrationSuccessResponse(businessRegistration)))
       when(mockCorpTaxRepo.findOneBySelector(mockCorpTaxRepo.regIDSelector(eqTo(registrationId))))

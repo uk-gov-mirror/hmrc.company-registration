@@ -17,7 +17,7 @@
 package models
 
 import auth.CryptoSCRS
-import models.des.BusinessAddress
+import models.api.BusinessAddress
 import models.validation.{APIValidation, BaseJsonFormatting}
 import play.api.libs.json.Format
 import play.api.libs.functional.syntax._

@@ -17,7 +17,7 @@
 package models
 
 import helpers.BaseSpec
-import models.des.BusinessAddress
+import models.api.BusinessAddress
 import models.validation.{APIValidation, MongoValidation}
 import play.api.libs.json.{Format, JsValue, Json}
 import utils.LogCapturingHelper
@@ -699,7 +699,7 @@ class GroupsSpec extends BaseSpec with LogCapturingHelper {
       val res = jsonToTest.as[Seq[String]](GroupNameListValidator.formats)
       res mustBe Seq("Æ", "Æ", "testName3", "testName4")
     }
-    "successfully return a name over the maximum char limit because this can be trimmed after on des submission" in {
+    "successfully return a name over the maximum char limit because this can be trimmed after on api submission" in {
       val jsonToTest = Json.parse(
         """
           |[

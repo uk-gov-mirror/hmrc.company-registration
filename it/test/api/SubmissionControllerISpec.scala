@@ -21,7 +21,7 @@ import com.github.tomakehurst.wiremock.client.WireMock._
 import config.LangConstants
 import models.RegistrationStatus._
 import models._
-import models.des.BusinessAddress
+import models.api.BusinessAddress
 import org.mongodb.scala.result.InsertOneResult
 import play.api.Application
 import play.api.http.HeaderNames
