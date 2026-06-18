@@ -36,8 +36,8 @@ object SubmissionEventDetail {
 
     def businessContactAuditWrites(contact: BusinessContactDetails) = BusinessContactDetails.auditWrites(contact)
 
-    def desSubmissionState: JsObject = {
-      Json.obj("desSubmissionState" -> "partial")
+    def apiSubmissionState: JsObject = {
+      Json.obj("apiSubmissionState" -> "partial")
     }
 
     val address = (detail.jsSubmission \ "registration" \ "corporationTax" \ "businessAddress").
@@ -70,6 +70,6 @@ object SubmissionEventDetail {
       CORP_TAX -> corporationTax.++
       (address).++
       (contactDetails)
-    ) ++ desSubmissionState
+    ) ++ apiSubmissionState
   }
 }

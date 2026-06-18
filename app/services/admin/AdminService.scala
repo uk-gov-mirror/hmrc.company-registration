@@ -41,7 +41,7 @@ import scala.concurrent.{ExecutionContext, Future}
 @Singleton
 class AdminServiceImpl @Inject()(val corpTaxRegRepo: CorporationTaxRegistrationMongoRepository,
                                  val brConnector: BusinessRegistrationConnector,
-                                 val desConnector: SubmissionEventService,
+                                 val submissionEventService: SubmissionEventService,
                                  val repositories: Repositories,
                                  val incorpInfoConnector: IncorporationInformationConnector, microserviceAppConfig: MicroserviceAppConfig,
                                  val auditService: AuditService,
@@ -60,7 +60,7 @@ trait AdminService extends ScheduledService[Either[Int, LockResponse]] with Date
 
   implicit val ec: ExecutionContext
   val corpTaxRegRepo: CorporationTaxRegistrationMongoRepository
-  val desConnector: SubmissionEventService
+  val submissionEventService: SubmissionEventService
   val auditService: AuditService
   val incorpInfoConnector: IncorporationInformationConnector
   val brConnector: BusinessRegistrationConnector
@@ -214,7 +214,7 @@ trait AdminService extends ScheduledService[Either[Int, LockResponse]] with Date
     if (info.status != DRAFT) {
       val ackRef = confRefs.acknowledgementReference
       for {
-        _ <- desConnector.topUpCTSubmission(ackRef, submission(ackRef), info.regId)
+        _ <- submissionEventService.topUpCTSubmission(ackRef, submission(ackRef), info.regId)
         _ <- auditService.sendEvent("ctRegistrationAdditionalData", ApiTopUpSubmissionEventDetail(
           info.regId,
           ackRef,

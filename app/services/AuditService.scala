@@ -66,12 +66,12 @@ trait AuditService {
   }
 
   def ctRegSubmissionFromJson(journeyId: String, json: JsObject): CTRegistrationSubmissionAuditEventDetails = {
-    val des = json.as[ApiResponse]
+    val apiResponse = json.as[ApiResponse]
     CTRegistrationSubmissionAuditEventDetails(
       journeyId,
-      des.processingDate,
-      des.acknowledgementReference,
-      des.reason
+      apiResponse.processingDate,
+      apiResponse.acknowledgementReference,
+      apiResponse.reason
     )
   }
 }

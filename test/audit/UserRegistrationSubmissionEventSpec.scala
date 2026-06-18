@@ -40,7 +40,7 @@ class UserRegistrationSubmissionEventSpec extends PlaySpec {
            |{
            |   "journeyId": "$regId",
            |   "acknowledgementReference": "$ackRef",
-           |   "desSubmissionState": "partial",
+           |   "apiSubmissionState": "partial",
            |   "registrationMetadata": {
            |      "businessType": "Limited company",
            |      "authProviderId": "$authProviderId",
@@ -108,7 +108,7 @@ class UserRegistrationSubmissionEventSpec extends PlaySpec {
            |{
            |   "journeyId": "$regId",
            |   "acknowledgementReference": "$ackRef",
-           |   "desSubmissionState": "partial",
+           |   "apiSubmissionState": "partial",
            |   "registrationMetadata": {
            |      "businessType": "Limited company",
            |      "authProviderId": "$authProviderId",

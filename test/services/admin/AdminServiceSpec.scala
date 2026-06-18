@@ -55,7 +55,7 @@ class AdminServiceSpec extends PlaySpec with MockitoSugar with BeforeAndAfterEac
       val incorpInfoConnector: IncorporationInformationConnector = mockIncorpInfoConnector
       val corpTaxRegRepo: CorporationTaxRegistrationMongoRepository = mockCorpTaxRegistrationRepo
       val brConnector: BusinessRegistrationConnector = mockBusRegConnector
-      val desConnector: SubmissionEventService = mockSubmissionEventService
+      val submissionEventService: SubmissionEventService = mockSubmissionEventService
       override val lockKeeper: LockService = mockLockService
       implicit val ec: ExecutionContext = global
       override val staleAmount: Int = 10

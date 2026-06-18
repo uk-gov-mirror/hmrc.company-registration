@@ -168,11 +168,11 @@ trait SubmissionService extends DateHelper with Logging {
       }
     }
 
-    val companyDetails = ctData.companyDetails.getOrElse(throw new RuntimeException("[buildPartialApiSubmission] no company details found in ct doc when building partial des submission"))
-    val contactDetails = ctData.contactDetails.getOrElse(throw new RuntimeException("[buildPartialApiSubmission] no contact details found in ct doc when building partial des submission"))
-    val tradingDetails = ctData.tradingDetails.getOrElse(throw new RuntimeException("[buildPartialApiSubmission] no trading details found in ct doc when building partial des submission"))
+    val companyDetails = ctData.companyDetails.getOrElse(throw new RuntimeException("[buildPartialApiSubmission] no company details found in ct doc when building partial Api submission"))
+    val contactDetails = ctData.contactDetails.getOrElse(throw new RuntimeException("[buildPartialApiSubmission] no contact details found in ct doc when building partial Api submission"))
+    val tradingDetails = ctData.tradingDetails.getOrElse(throw new RuntimeException("[buildPartialApiSubmission] no trading details found in ct doc when building partial Api submission"))
     val completionCapacity = CompletionCapacity(
-      brMetadata.completionCapacity.getOrElse(throw new RuntimeException("[buildPartialApiSubmission] no completion Capacity found in br when building partial des submission"))
+      brMetadata.completionCapacity.getOrElse(throw new RuntimeException("[buildPartialApiSubmission] no completion Capacity found in br when building partial Api submission"))
     )
 
     val optPPOBAddress: Option[PPOBAddress] = companyDetails.ppob match {
@@ -209,7 +209,7 @@ trait SubmissionService extends DateHelper with Logging {
           ))
           val utr = og.groupUTR.getOrElse(throw new RuntimeException(s"formatGroupsForSubmission groups exists but utr block does not: $regId"))
           val nameFormatted = APIValidation.parentGroupNameValidator.reads(JsString(nameOfComp.name))
-            .getOrElse(throw new RuntimeException(s"Parent group name saved does not pass des validation: $regId"))
+            .getOrElse(throw new RuntimeException(s"Parent group name saved does not pass Api validation: $regId"))
           Groups(
             og.groupRelief,
             Some(nameOfComp.copy(name = nameFormatted)),

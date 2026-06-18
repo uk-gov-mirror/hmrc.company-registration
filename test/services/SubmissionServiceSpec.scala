@@ -911,7 +911,7 @@ class SubmissionServiceSpec extends BaseSpec with AuthorisationMocks with Corpor
             Some(GroupsAddressAndType(GroupAddressTypeEnum.ALF, BusinessAddress("1", "1", None, None, Some("ZZ1 1ZZ"), None))), Some(GroupUTR(None)))))
 
       val res: RuntimeException = intercept[RuntimeException](service.buildPartialApiSubmission(regId, ackRef, credId, businessRegistration, ctReg))
-      res.getMessage mustBe s"Parent group name saved does not pass des validation: $regId"
+      res.getMessage mustBe s"Parent group name saved does not pass Api validation: $regId"
     }
 
     "throw a RunTime exception if there is no sessionID in the header carrier or mongo" in new Setup {
