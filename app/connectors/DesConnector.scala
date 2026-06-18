@@ -60,7 +60,6 @@ class DesConnector @Inject()(
 
     cPOST(url, submission) map { response =>
       logger.info(s"[ctTopUpSubmission] Top up submission to DES successful for regId: $journeyId AckRef: $ackRef")
-
       response
     } recoverWith {
       case ex: UpstreamErrorResponse if UpstreamErrorResponse.Upstream4xxResponse.unapply(ex).isDefined =>
