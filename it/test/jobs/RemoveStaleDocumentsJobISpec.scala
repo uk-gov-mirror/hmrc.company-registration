@@ -17,7 +17,7 @@
 package test.jobs
 
 import com.google.inject.name.Names
-import config.LangConstants
+import config.{LangConstants, MicroserviceAppConfig}
 import jobs.{LockResponse, ScheduledJob}
 import models._
 import org.mongodb.scala.result.InsertOneResult
@@ -37,6 +37,8 @@ import scala.concurrent.ExecutionContext.Implicits.global
 
 class RemoveStaleDocumentsJobISpec extends IntegrationSpecBase with MongoIntegrationSpec with LogCapturingHelper {
 
+  lazy val appConfig = app.injector.instanceOf[MicroserviceAppConfig]
+
   val mockHost: String = WiremockHelper.wiremockHost
   val mockPort: Int = WiremockHelper.wiremockPort
   val mockUrl = s"http://$mockHost:$mockPort"
@@ -50,6 +52,8 @@ class RemoveStaleDocumentsJobISpec extends IntegrationSpecBase with MongoIntegra
     "microservice.services.business-registration.port" -> s"$mockPort",
     "microservice.services.des-service.host" -> s"$mockHost",
     "microservice.services.des-service.port" -> s"$mockPort",
+    "microservice.services.hip-connector.host" -> s"$mockHost",
+    "microservice.services.hip-connector.port" -> s"$mockPort",
     "staleDocumentAmount" -> 4,
     "microservice.services.skipStaleDocs" -> "MSwyLDM=",
     "vat-threshold" -> List(
@@ -120,6 +124,9 @@ class RemoveStaleDocumentsJobISpec extends IntegrationSpecBase with MongoIntegra
     val key = BindingKey[ScheduledJob](classOf[ScheduledJob], qualifier)
     app.injector.instanceOf[ScheduledJob](key)
   }
+
+  val topUpCtSubmissionUrl: String =
+    if (appConfig.useHip) "/RESTAdapter/business-incorporation/CT" else "/business-incorporation/corporation-tax"
 
   "Remove Stale Documents Job" must {
     "delete 2 documents" when {
@@ -260,7 +267,7 @@ class RemoveStaleDocumentsJobISpec extends IntegrationSpecBase with MongoIntegra
         stubGet(s"/incorporation-information/$txID/incorporation-update", 200, s"""{}""")
         stubDelete(s"/incorporation-information/subscribe/txId/regime/ct/subscriber/SCRS?force=true", 200, "{}")
         stubGet(s"/business-registration/admin/business-tax-registration/remove/$regId", 200, """{}""")
-        stubPost("/business-incorporation/corporation-tax", 200, "{}")
+        stubPost(topUpCtSubmissionUrl, 200, "{}")
         stubPost(s"/write/audit", 200, "{}")
 
         insert(corporationTaxRegistration(status = "held", lastSignedIn = Instant.now.minus(93, ChronoUnit.DAYS), regId = regId))

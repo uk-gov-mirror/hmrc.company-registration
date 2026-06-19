@@ -62,7 +62,10 @@ class MetricsServiceImpl @Inject()(metricsInstance: Metrics,
 
   override val userAccessCRTimer: Timer = metrics.defaultRegistry.timer("user-access-CR-timer")
 
-  override val apiSubmissionCRTimer: Timer = metrics.defaultRegistry.timer("api-submission-CR-timer")
+  override val desSubmissionCRTimer: Timer = metrics.defaultRegistry.timer("des-submission-CR-timer")
+  override val hipSubmissionCRTimer: Timer = metrics.defaultRegistry.timer("hip-submission-CR-timer")
+  override val apiSubmissionCrtTimer: Timer =
+    if (servicesConfig.getBoolean("features.hip")) hipSubmissionCRTimer else desSubmissionCRTimer
 
   lazy val lockoutTimeout: Int = servicesConfig.getInt("metrics-job.lockTimeout")
 
@@ -97,7 +100,9 @@ trait MetricsService extends ScheduledService[Either[Map[String, Int], LockRespo
 
   val userAccessCRTimer: Timer
 
-  val apiSubmissionCRTimer: Timer
+  val desSubmissionCRTimer: Timer
+  val hipSubmissionCRTimer: Timer
+  val apiSubmissionCrtTimer: Timer
 
   val ctRepository: CorporationTaxRegistrationMongoRepository
   val lockKeeper: LockService
