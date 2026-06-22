@@ -26,8 +26,7 @@ trait CorrelationGenerator { // scalastyle: off magic.number
 
   def generateRandomUUID: String = randomUUID.toString
 
-  def addCorrelationId(hc: HeaderCarrier): HeaderCarrier = { // scalaStyle:off magic.number
-
+  def addCorrelationId(hc: HeaderCarrier): HeaderCarrier = {
     val correlationId: String = generateCorrelationId(hc.requestId)
     hc.withExtraHeaders(CorrelationIdHeaderName -> correlationId)
   }

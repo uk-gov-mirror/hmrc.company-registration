@@ -35,28 +35,52 @@ class RoutingConnectorSpec extends BaseSpec {
 
   val mockMicroserviceAppConfig: MicroserviceAppConfig = mock[MicroserviceAppConfig]
 
-  "RoutingConnector" must {
-    val submissionJson = Json.obj("x" -> "y")
+  val submissionJson: JsObject = Json.obj("x" -> "y")
 
-    "delegate to the HIP connector when useHip flag is true" in {
-      val routingConnector = new RoutingConnector(mockMicroserviceAppConfig, mockDesConnector, mockHipConnector)
-      when(mockMicroserviceAppConfig.useHip).thenReturn(true)
-      when(mockHipConnector.ctSubmission(anyString(), any[JsValue], anyString())(eqTo(hc)))
-        .thenReturn(Future.successful(HttpResponse(202, submissionJson, Map())))
 
-      routingConnector.ctSubmission("", submissionJson, "testJID")
-      verify(mockHipConnector, times(1)).ctSubmission(eqTo(""), eqTo(submissionJson), eqTo("testJID"))(eqTo(hc))
+  "RoutingConnector" when {
+
+    "performing ctSubmission" must {
+      "delegate to the HIP connector when useHip flag is true" in {
+        val routingConnector = new RoutingConnector(mockMicroserviceAppConfig, mockDesConnector, mockHipConnector)
+        performAndVerifyCTSubmission(routingConnector)
+      }
+
+      "delegate to the DES connector when useHip flag is false" in {
+        val routingConnector = new RoutingConnector(mockMicroserviceAppConfig, mockDesConnector, mockHipConnector)
+        performAndVerifyCTSubmission(routingConnector, useHip = false)
+      }
     }
 
-    "delegate to the DES connector when useHip flag is false" in {
-      val routingConnector = new RoutingConnector(mockMicroserviceAppConfig, mockDesConnector, mockHipConnector)
-      when(mockMicroserviceAppConfig.useHip).thenReturn(false)
-      when(mockDesConnector.topUpCTSubmission(anyString(), any[JsObject], anyString())(eqTo(hc)))
-        .thenReturn(Future.successful(HttpResponse(202, submissionJson, Map())))
+    "performing topUpCtSubmission" must {
+      "delegate to the HIP connector when useHip flag is true" in {
+        val routingConnector = new RoutingConnector(mockMicroserviceAppConfig, mockDesConnector, mockHipConnector)
+        performAndVerifyTopUpCTSubmission(routingConnector)
+      }
 
-      routingConnector.topUpCTSubmission("", submissionJson, "testJID")
-      verify(mockDesConnector, times(1)).topUpCTSubmission(eqTo(""), eqTo(submissionJson), eqTo("testJID"))(eqTo(hc))
+      "delegate to the DES connector when useHip flag is false" in {
+        val routingConnector = new RoutingConnector(mockMicroserviceAppConfig, mockDesConnector, mockHipConnector)
+        performAndVerifyTopUpCTSubmission(routingConnector, useHip = false)
+      }
     }
+  }
+
+  private def performAndVerifyCTSubmission(routingConnector: RoutingConnector, useHip: Boolean = true) = {
+    when(mockMicroserviceAppConfig.useHip).thenReturn(useHip)
+    when(mockHipConnector.ctSubmission(anyString(), any[JsValue], anyString())(eqTo(hc)))
+      .thenReturn(Future.successful(HttpResponse(202, submissionJson, Map())))
+
+    routingConnector.ctSubmission("", submissionJson, "testJID")
+    verify(mockHipConnector, times(1)).ctSubmission(eqTo(""), eqTo(submissionJson), eqTo("testJID"))(eqTo(hc))
+  }
+
+  private def performAndVerifyTopUpCTSubmission(routingConnector: RoutingConnector, useHip: Boolean = true) = {
+    when(mockMicroserviceAppConfig.useHip).thenReturn(useHip)
+    when(mockHipConnector.topUpCTSubmission(anyString(), any[JsValue], anyString())(eqTo(hc)))
+      .thenReturn(Future.successful(HttpResponse(202, submissionJson, Map())))
+
+    routingConnector.topUpCTSubmission("", submissionJson, "testJID")
+    verify(mockHipConnector, times(1)).topUpCTSubmission(eqTo(""), eqTo(submissionJson), eqTo("testJID"))(eqTo(hc))
   }
 
 }

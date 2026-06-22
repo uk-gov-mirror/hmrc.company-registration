@@ -20,11 +20,12 @@ import config.MicroserviceAppConfig
 import helpers.BaseSpec
 import mocks.WSHttpClientV2Mock
 import org.mockito.ArgumentMatchers.{eq => eqTo}
+import org.mockito.ArgumentCaptor
 import org.mockito.Mockito._
 import play.api.libs.json.Json
 import play.api.test.Helpers._
+import sttp.model.HeaderNames
 import uk.gov.hmrc.http.{HeaderCarrier, HttpResponse, SessionId, StringContextOps, UpstreamErrorResponse}
-import uk.gov.hmrc.play.bootstrap.config.ServicesConfig
 
 import java.util.UUID
 import scala.concurrent.ExecutionContext
@@ -50,65 +51,84 @@ class HipConnectorSpec extends BaseSpec with WSHttpClientV2Mock {
     when(mockMicroserviceAppConfig.hipClientSecret).thenReturn(hipClientSecret)
 
     reset(mockHttpClientV2)
+    reset(requestBuilder)
   }
 
-  "HipConnector" must {
+  "HipConnector" when {
 
     val submissionJson = Json.parse("""{"x" : "y"}""")
     implicit val hc: HeaderCarrier = new HeaderCarrier(sessionId = Some(SessionId(s"session-${UUID.randomUUID}")))
 
-    "for accepted submission, return success" in new Setup {
-      mockHttpPost(busReqUrl, submissionJson, HttpResponse(202, submissionJson, Map.empty))
+    def verifyHipHeaders() = {
+      val hipHeadersSet = Set( HeaderNames.Authorization, "X-Originating-System", "correlationid", "X-Receipt-Date", "X-Transmitting-System")
+      val hipHeaderFixed = Set("HIP","SCRS")
 
-      val result: HttpResponse = await(connector.ctSubmission("", submissionJson, "testJID"))
-      result.status mustBe 202
-      verify(mockHttpClientV2, times(1)).post(eqTo(busReqUrl))(eqTo(hc))
+      val captor = ArgumentCaptor.forClass(classOf[Seq[(String, String)]])
+      verify(requestBuilder, times(1)).setHeader(captor.capture() :_*)
+      captor.getValue.map(_._1).toSet mustBe hipHeadersSet
+      captor.getValue.map(_._2).toSet.intersect(hipHeaderFixed) mustBe hipHeaderFixed
     }
 
-    "for topup submission, return success" in new Setup {
-      mockHttpPost(busIncUrl, submissionJson, HttpResponse(202, submissionJson, Map.empty))
+    "performing ctSubmission" must {
+      "for accepted submission, return success" in new Setup {
+        mockHttpPost(busReqUrl, submissionJson, HttpResponse(202, submissionJson, Map.empty))
 
-      val result: HttpResponse = await(connector.topUpCTSubmission("", submissionJson, "testJID"))
-      result.status mustBe 202
-      verify(mockHttpClientV2, times(1)).post(eqTo(busIncUrl))(eqTo(hc))
-    }
-
-    "for a forbidden request, return a bad request" in new Setup {
-      mockHttpPostError(busReqUrl, submissionJson, UpstreamErrorResponse("", 403, 400))
-      intercept[UpstreamErrorResponse] {
-        await(connector.ctSubmission("", submissionJson, "testJID"))
+        val result: HttpResponse = await(connector.ctSubmission("", submissionJson, "testJID"))
+        result.status mustBe 202
+        verify(mockHttpClientV2, times(1)).post(eqTo(busReqUrl))(eqTo(hc))
+        verifyHipHeaders()
       }
-      verify(mockHttpClientV2, times(1)).post(eqTo(busReqUrl))(eqTo(hc))
+
+      "for a forbidden request, return a bad request" in new Setup {
+        mockHttpPostError(busReqUrl, submissionJson, UpstreamErrorResponse("", 403, 400))
+        intercept[UpstreamErrorResponse] {
+          await(connector.ctSubmission("", submissionJson, "testJID"))
+        }
+        verify(mockHttpClientV2, times(1)).post(eqTo(busReqUrl))(eqTo(hc))
+        verifyHipHeaders()
+      }
+
+      "for a client request timeout, return unavailable" in new Setup {
+        mockHttpPostError(busReqUrl, submissionJson, UpstreamErrorResponse("", 499, 502)) //check if HIP can produce a 499
+        intercept[UpstreamErrorResponse] {
+          await(connector.ctSubmission("", submissionJson, "testJID"))
+        }
+        verify(mockHttpClientV2, times(1)).post(eqTo(busReqUrl))(eqTo(hc))
+        verifyHipHeaders()
+      }
     }
 
-    "for a forbidden topup request, return a bad request" in new Setup {
-      mockHttpPostError(busIncUrl, submissionJson, UpstreamErrorResponse("", 403, 400))
-      intercept[UpstreamErrorResponse] {
-        await(connector.topUpCTSubmission("", submissionJson, "testJID"))
-      }
-      verify(mockHttpClientV2, times(1)).post(eqTo(busIncUrl))(eqTo(hc))
-    }
+    "performing topUpCtSubmission" must {
+      "for a client request, return success" in new Setup {
+        mockHttpPost(busIncUrl, submissionJson, HttpResponse(202, submissionJson, Map.empty))
 
-
-    "for a client request timeout, return unavailable" in new Setup {
-      mockHttpPostError(busReqUrl, submissionJson, UpstreamErrorResponse("", 499, 502))  //check if HIP can produce a 499
-      intercept[UpstreamErrorResponse] {
-        await(connector.ctSubmission("", submissionJson, "testJID"))
+        val result: HttpResponse = await(connector.topUpCTSubmission("", submissionJson, "testJID"))
+        result.status mustBe 202
+        verify(mockHttpClientV2, times(1)).post(eqTo(busIncUrl))(eqTo(hc))
+        verifyHipHeaders()
       }
-      verify(mockHttpClientV2, times(1)).post(eqTo(busReqUrl))(eqTo(hc))
-    }
 
-    "for a client topup request timeout, return unavailable" in new Setup {
-      mockHttpPostError(busIncUrl, submissionJson, UpstreamErrorResponse("", 499, 502))  //check if HIP can produce a 499
-      intercept[UpstreamErrorResponse] {
-        await(connector.topUpCTSubmission("", submissionJson, "testJID"))
+      "for a forbidden request, return a bad request" in new Setup {
+        mockHttpPostError(busIncUrl, submissionJson, UpstreamErrorResponse("", 403, 400))
+        intercept[UpstreamErrorResponse] {
+          await(connector.topUpCTSubmission("", submissionJson, "testJID"))
+        }
+        verify(mockHttpClientV2, times(1)).post(eqTo(busIncUrl))(eqTo(hc))
+        verifyHipHeaders()
       }
-      verify(mockHttpClientV2, times(1)).post(eqTo(busIncUrl))(eqTo(hc))
+
+      "for a client request timeout, return unavailable" in new Setup {
+        mockHttpPostError(busIncUrl, submissionJson, UpstreamErrorResponse("", 499, 502)) //check if HIP can produce a 499
+        intercept[UpstreamErrorResponse] {
+          await(connector.topUpCTSubmission("", submissionJson, "testJID"))
+        }
+        verify(mockHttpClientV2, times(1)).post(eqTo(busIncUrl))(eqTo(hc))
+        verifyHipHeaders()
+      }
     }
   }
 
-  "httpRds" must {
-
+  "performing httpRds" must {
     "return the http response when a 200 status code is read from the http response" in new Setup {
       val response = HttpResponse(OK, "")
       connector.httpRds.read(GET, "testUrl", response) mustBe response
@@ -141,12 +161,13 @@ class HipConnectorSpec extends BaseSpec with WSHttpClientV2Mock {
       }
         .reportAs mustBe BAD_GATEWAY
     }
-    
+
     "return a UpstreamErrorResponse when response is 503" in new Setup {
       intercept[UpstreamErrorResponse] {
         connector.httpRds.read(POST, "testUrl", HttpResponse(TOO_MANY_REQUESTS, ""))
       }
-      .reportAs mustBe SERVICE_UNAVAILABLE
+        .reportAs mustBe SERVICE_UNAVAILABLE
     }
   }
 }
+

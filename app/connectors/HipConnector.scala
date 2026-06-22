@@ -103,22 +103,21 @@ class HipConnector @Inject()(
       .execute
   }
 
-  implicit val httpRds: HttpReads[HttpResponse] = new HttpReads[HttpResponse] {
-    def read(http: String, url: String, response: HttpResponse): HttpResponse = response.status match {
-      case CONFLICT  =>  //409
-        logger.warn("[HipConnector httpRds]: Received 409 from HIP - converting to 202")
-        HttpResponse(ACCEPTED, response.body, response.headers)
-      case TOO_MANY_REQUESTS =>  //429
-        logger.warn("[HipConnector httpRds] Received 429 from HIP - converting to 503")
-        throw UpstreamErrorResponse("TooManyRequests received from HIP submission", TOO_MANY_REQUESTS, SERVICE_UNAVAILABLE)
-      case 499 =>  // check if HIP produces 499 response status code
-        logger.warn("[HipConnector httpRds] Received 499 from HIP - converting to 502")
-        throw UpstreamErrorResponse("Timeout received from HIP submission", 499, BAD_GATEWAY)
-      case status if is4xx(status) =>
-        throw UpstreamErrorResponse(upstreamResponseMessage(http, url, status, response.body), status, reportAs = 400, response.headers)
-      case _ =>
-        handleResponseEither(http, url)(response).fold(errorResponse => throw errorResponse, identity)
-    }
+  implicit val httpRds: HttpReads[HttpResponse] = (http: String, url: String, response: HttpResponse) => response.status match {
+    case CONFLICT =>
+      logger.warn("[HipConnector httpRds]: Received 409 from HIP - converting to 202")
+      HttpResponse(ACCEPTED, response.body, response.headers)
+    case TOO_MANY_REQUESTS =>
+      logger.warn("[HipConnector httpRds] Received 429 from HIP - converting to 503")
+      throw UpstreamErrorResponse("TooManyRequests received from HIP submission", TOO_MANY_REQUESTS, SERVICE_UNAVAILABLE)
+    case 499 =>
+      logger.warn("[HipConnector httpRds] Received 499 from HIP - converting to 502")
+      throw UpstreamErrorResponse("Timeout received from HIP submission", 499, BAD_GATEWAY)
+    case status if is4xx(status) =>
+      throw UpstreamErrorResponse(
+        upstreamResponseMessage(http, url, status, response.body), status, reportAs = BAD_REQUEST, response.headers)
+    case _ =>
+      handleResponseEither(http, url)(response).fold(errorResponse => throw errorResponse, identity)
   }
 
 }
