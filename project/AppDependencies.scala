@@ -14,7 +14,7 @@ object AppDependencies {
   private val pekkoVersion             = "1.2.0-pekko-1.0.x"
   private val catsVersion              = "2.13.0"
   private val wiremockVersion          = "3.13.0"
-  private val hmrcMongoVersion         = "2.10.0"
+  private val hmrcMongoVersion         = "2.12.0"
   private val flexmarkVersion          = "0.64.8"
 
   val compile: Seq[ModuleID] = Seq(

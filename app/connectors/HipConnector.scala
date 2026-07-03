@@ -80,24 +80,20 @@ class HipConnector @Inject()(
         }
         .getOrElse(generateCorrelationId(hc.requestId))
 
-    val authSecret: String =
-      Base64.getEncoder
-        .encodeToString(
-          s"${appConfig.hipClientId}:${appConfig.hipClientSecret}"
-            .getBytes(StandardCharsets.UTF_8)
-        )
-
     val hipHeaders: Seq[(String, String)] =
       Seq(
-        HeaderNames.Authorization -> s"Basic $authSecret",
+        HeaderNames.Authorization -> s"Basic ${appConfig.hipAuthToken}",
         "X-Originating-System"    -> "SCRS",
         "correlationid"           -> correlationId,
         "X-Receipt-Date"          -> DateTimeFormatter.ISO_INSTANT.format(Instant.now().truncatedTo(ChronoUnit.SECONDS)),
         "X-Transmitting-System"   -> "HIP"
       )
 
+    val hcWithoutAuth = hc.copy(authorization = None)
+
+    logger.info(s"[HipConnector] Calling endpoint: $uri with Correlation ID: $correlationId")
     httpClientV2
-      .post(url"$uri")(hc)
+      .post(url"$uri")(hcWithoutAuth)
       .setHeader(hipHeaders:_*)
       .withBody(body)
       .execute

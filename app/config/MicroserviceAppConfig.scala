@@ -18,10 +18,14 @@ package config
 
 import models.VatThreshold
 import com.typesafe.config.{ConfigList, ConfigRenderOptions}
+
 import javax.inject.{Inject, Singleton}
 import uk.gov.hmrc.play.bootstrap.config.ServicesConfig
 import play.api.Configuration
 import play.api.libs.json.Json
+
+import java.nio.charset.StandardCharsets
+import java.util.Base64
 
 @Singleton
 class MicroserviceAppConfig @Inject()(servicesConfig: ServicesConfig, configuration: Configuration) {
@@ -43,5 +47,6 @@ class MicroserviceAppConfig @Inject()(servicesConfig: ServicesConfig, configurat
   lazy val hipUrl: String          = servicesConfig.baseUrl("hip-connector")
   lazy val hipClientId: String     = servicesConfig.getString("microservice.services.hip-connector.clientId")
   lazy val hipClientSecret: String = servicesConfig.getString("microservice.services.hip-connector.clientSecret")
-  lazy val apiRoute: String       = if (useHip) "HIP" else "DES"
+  lazy val hipAuthToken: String    = Base64.getEncoder.encodeToString(s"$hipClientId:$hipClientSecret".getBytes(StandardCharsets.UTF_8))
+  lazy val apiRoute: String        = if (useHip) "HIP" else "DES"
 }

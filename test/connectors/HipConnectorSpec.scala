@@ -22,6 +22,7 @@ import mocks.WSHttpClientV2Mock
 import org.mockito.ArgumentMatchers.{eq => eqTo}
 import org.mockito.ArgumentCaptor
 import org.mockito.Mockito._
+import org.scalatest.Assertion
 import play.api.libs.json.Json
 import play.api.test.Helpers._
 import sttp.model.HeaderNames
@@ -46,6 +47,15 @@ class HipConnectorSpec extends BaseSpec with WSHttpClientV2Mock {
     val mockMicroserviceAppConfig: MicroserviceAppConfig = mock[MicroserviceAppConfig]
     val connector: HipConnector = new HipConnector(mockMicroserviceAppConfig, mockHttpClientV2)(ec)
 
+    def verifyHipHeaders(): Assertion = {
+      val hipHeadersSet = Set( HeaderNames.Authorization, "X-Originating-System", "correlationid", "X-Receipt-Date", "X-Transmitting-System")
+      val hipHeaderFixed = Set("HIP","SCRS")
+
+      val captor = ArgumentCaptor.forClass(classOf[Seq[(String, String)]])
+      verify(requestBuilder, times(1)).setHeader(captor.capture() :_*)
+      captor.getValue.map(_._1).toSet mustBe hipHeadersSet
+      captor.getValue.map(_._2).toSet.intersect(hipHeaderFixed) mustBe hipHeaderFixed
+    }
     when(mockMicroserviceAppConfig.hipUrl).thenReturn(serviceURL)
     when(mockMicroserviceAppConfig.hipClientId).thenReturn(hipClientId)
     when(mockMicroserviceAppConfig.hipClientSecret).thenReturn(hipClientSecret)
@@ -59,16 +69,6 @@ class HipConnectorSpec extends BaseSpec with WSHttpClientV2Mock {
     val submissionJson = Json.parse("""{"x" : "y"}""")
     implicit val hc: HeaderCarrier = new HeaderCarrier(sessionId = Some(SessionId(s"session-${UUID.randomUUID}")))
 
-    def verifyHipHeaders() = {
-      val hipHeadersSet = Set( HeaderNames.Authorization, "X-Originating-System", "correlationid", "X-Receipt-Date", "X-Transmitting-System")
-      val hipHeaderFixed = Set("HIP","SCRS")
-
-      val captor = ArgumentCaptor.forClass(classOf[Seq[(String, String)]])
-      verify(requestBuilder, times(1)).setHeader(captor.capture() :_*)
-      captor.getValue.map(_._1).toSet mustBe hipHeadersSet
-      captor.getValue.map(_._2).toSet.intersect(hipHeaderFixed) mustBe hipHeaderFixed
-    }
-
     "performing ctSubmission" must {
       "for accepted submission, return success" in new Setup {
         mockHttpPost(busReqUrl, submissionJson, HttpResponse(202, submissionJson, Map.empty))
@@ -81,18 +81,18 @@ class HipConnectorSpec extends BaseSpec with WSHttpClientV2Mock {
 
       "for a forbidden request, return a bad request" in new Setup {
         mockHttpPostError(busReqUrl, submissionJson, UpstreamErrorResponse("", 403, 400))
-        intercept[UpstreamErrorResponse] {
+        intercept[UpstreamErrorResponse](
           await(connector.ctSubmission("", submissionJson, "testJID"))
-        }
+        )
         verify(mockHttpClientV2, times(1)).post(eqTo(busReqUrl))(eqTo(hc))
         verifyHipHeaders()
       }
 
       "for a client request timeout, return unavailable" in new Setup {
         mockHttpPostError(busReqUrl, submissionJson, UpstreamErrorResponse("", 499, 502)) //check if HIP can produce a 499
-        intercept[UpstreamErrorResponse] {
+        intercept[UpstreamErrorResponse](
           await(connector.ctSubmission("", submissionJson, "testJID"))
-        }
+        )
         verify(mockHttpClientV2, times(1)).post(eqTo(busReqUrl))(eqTo(hc))
         verifyHipHeaders()
       }
@@ -110,18 +110,18 @@ class HipConnectorSpec extends BaseSpec with WSHttpClientV2Mock {
 
       "for a forbidden request, return a bad request" in new Setup {
         mockHttpPostError(busIncUrl, submissionJson, UpstreamErrorResponse("", 403, 400))
-        intercept[UpstreamErrorResponse] {
+        intercept[UpstreamErrorResponse](
           await(connector.topUpCTSubmission("", submissionJson, "testJID"))
-        }
+        )
         verify(mockHttpClientV2, times(1)).post(eqTo(busIncUrl))(eqTo(hc))
         verifyHipHeaders()
       }
 
       "for a client request timeout, return unavailable" in new Setup {
         mockHttpPostError(busIncUrl, submissionJson, UpstreamErrorResponse("", 499, 502)) //check if HIP can produce a 499
-        intercept[UpstreamErrorResponse] {
+        intercept[UpstreamErrorResponse](
           await(connector.topUpCTSubmission("", submissionJson, "testJID"))
-        }
+        )
         verify(mockHttpClientV2, times(1)).post(eqTo(busIncUrl))(eqTo(hc))
         verifyHipHeaders()
       }
@@ -135,9 +135,9 @@ class HipConnectorSpec extends BaseSpec with WSHttpClientV2Mock {
     }
 
     "return a not found exception when it reads a 404 status code from the http response" in new Setup {
-      intercept[UpstreamErrorResponse] {
+      intercept[UpstreamErrorResponse](
         connector.httpRds.read(POST, "testUrl", HttpResponse(NOT_FOUND, ""))
-      }
+      )
     }
 
     "return the response on an acceptable request" in new Setup {
@@ -146,9 +146,9 @@ class HipConnectorSpec extends BaseSpec with WSHttpClientV2Mock {
     }
 
     "return a UpstreamErrorResponse on a bad request" in new Setup {
-      intercept[UpstreamErrorResponse] {
+      intercept[UpstreamErrorResponse](
         connector.httpRds.read(POST, "testUrl", HttpResponse(BAD_REQUEST, ""))
-      }
+      )
     }
 
     "return the HttpResponse as a 202 on a conflict" in new Setup {
@@ -156,16 +156,16 @@ class HipConnectorSpec extends BaseSpec with WSHttpClientV2Mock {
     }
 
     "return a UpstreamErrorResponse on a timeout" in new Setup {
-      intercept[UpstreamErrorResponse] {
+      intercept[UpstreamErrorResponse](
         connector.httpRds.read(POST, "testUrl", HttpResponse(499, ""))
-      }
+      )
         .reportAs mustBe BAD_GATEWAY
     }
 
     "return a UpstreamErrorResponse when response is 503" in new Setup {
-      intercept[UpstreamErrorResponse] {
+      intercept[UpstreamErrorResponse](
         connector.httpRds.read(POST, "testUrl", HttpResponse(TOO_MANY_REQUESTS, ""))
-      }
+      )
         .reportAs mustBe SERVICE_UNAVAILABLE
     }
   }

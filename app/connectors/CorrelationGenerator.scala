@@ -20,7 +20,7 @@ import uk.gov.hmrc.http.{HeaderCarrier, RequestId}
 
 import java.util.UUID.randomUUID
 
-trait CorrelationGenerator { // scalastyle: off magic.number
+trait CorrelationGenerator {
 
   val CorrelationIdHeaderName = "CorrelationId"
 
