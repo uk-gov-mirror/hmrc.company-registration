@@ -67,8 +67,8 @@ class SubmissionControllerISpec extends IntegrationSpecBase with LoginStub with 
     "microservice.services.des-service.authorization-token" -> "testAuthToken",
     "microservice.services.des-topup-service.host" -> mockHost,
     "microservice.services.des-topup-service.port" -> mockPort,
-    "microservice.services.hip-connector.host" -> s"$mockHost",
-    "microservice.services.hip-connector.port" -> s"$mockPort"
+    "microservice.services.hip.host" -> s"$mockHost",
+    "microservice.services.hip.port" -> s"$mockPort"
   )
 
   override implicit lazy val app: Application = new GuiceApplicationBuilder()

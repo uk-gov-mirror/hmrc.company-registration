@@ -52,8 +52,8 @@ class RemoveStaleDocumentsJobISpec extends IntegrationSpecBase with MongoIntegra
     "microservice.services.business-registration.port" -> s"$mockPort",
     "microservice.services.des-service.host" -> s"$mockHost",
     "microservice.services.des-service.port" -> s"$mockPort",
-    "microservice.services.hip-connector.host" -> s"$mockHost",
-    "microservice.services.hip-connector.port" -> s"$mockPort",
+    "microservice.services.hip.host" -> s"$mockHost",
+    "microservice.services.hip.port" -> s"$mockPort",
     "staleDocumentAmount" -> 4,
     "microservice.services.skipStaleDocs" -> "MSwyLDM=",
     "vat-threshold" -> List(

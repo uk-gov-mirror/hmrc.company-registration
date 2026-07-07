@@ -31,6 +31,7 @@ import java.time.Instant
 import java.time.format.DateTimeFormatter
 import java.time.temporal.ChronoUnit
 import java.util.Base64
+import java.util.UUID.randomUUID
 import javax.inject.Inject
 import scala.concurrent.{ExecutionContext, Future}
 import scala.language.postfixOps
@@ -39,7 +40,7 @@ import scala.language.postfixOps
 class HipConnector @Inject()(
                              appConfig: MicroserviceAppConfig,
                              httpClientV2: HttpClientV2 )(
-  implicit ec: ExecutionContext) extends HttpErrorFunctions with Logging with CorrelationGenerator  {
+  implicit ec: ExecutionContext) extends HttpErrorFunctions with Logging {
 
   def ctSubmission(ackRef: String, submission: JsValue, journeyId: String)(implicit hc: HeaderCarrier): Future[HttpResponse] = {
 
@@ -72,13 +73,7 @@ class HipConnector @Inject()(
 
   private def cPOST(uri: String, body: JsValue)(implicit hc: HeaderCarrier) = {
 
-    val correlationId =
-      addCorrelationId(hc).extraHeaders
-        .map { case (key, value) => (key.toLowerCase, value) }
-        .collectFirst { case ("correlationid", value) =>
-          value
-        }
-        .getOrElse(generateCorrelationId(hc.requestId))
+    val correlationId = randomUUID.toString
 
     val hipHeaders: Seq[(String, String)] =
       Seq(
