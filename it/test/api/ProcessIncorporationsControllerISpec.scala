@@ -239,10 +239,10 @@ class ProcessIncorporationsControllerISpec extends IntegrationSpecBase with Mong
        """.stripMargin).as[JsObject]
 
   val ctSubmissionUrl: String =
-    if (appConfig.useHip) "/RESTAdapter/business-registration/CT" else "/business-registration/corporation-tax"
+    if (appConfig.useHip) "/etmp/RESTAdapter/business-registration/CT" else "/business-registration/corporation-tax"
 
   val topUpCtSubmissionUrl: String =
-    if (appConfig.useHip) "/RESTAdapter/business-incorporation/CT" else "/business-incorporation/corporation-tax"
+    if (appConfig.useHip) "/etmp/RESTAdapter/business-incorporation/CT" else "/business-incorporation/corporation-tax"
 
   val emailUrl = "/hmrc/email"
 

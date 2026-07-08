@@ -41,8 +41,8 @@ class HipConnectorSpec extends BaseSpec with WSHttpClientV2Mock {
     val hipClientId = "test"
     val hipClientSecret = "testAuth"
 
-    val busReqUrl = url"$serviceURL/RESTAdapter/business-registration/CT"
-    val busIncUrl = url"$serviceURL/RESTAdapter/business-incorporation/CT"
+    val busReqUrl = url"$serviceURL/etmp/RESTAdapter/business-registration/CT"
+    val busIncUrl = url"$serviceURL/etmp/RESTAdapter/business-incorporation/CT"
 
     val mockMicroserviceAppConfig: MicroserviceAppConfig = mock[MicroserviceAppConfig]
     val connector: HipConnector = new HipConnector(mockMicroserviceAppConfig, mockHttpClientV2)(ec)

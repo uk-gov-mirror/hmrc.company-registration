@@ -126,7 +126,7 @@ class RemoveStaleDocumentsJobISpec extends IntegrationSpecBase with MongoIntegra
   }
 
   val topUpCtSubmissionUrl: String =
-    if (appConfig.useHip) "/RESTAdapter/business-incorporation/CT" else "/business-incorporation/corporation-tax"
+    if (appConfig.useHip) "/etmp/RESTAdapter/business-incorporation/CT" else "/business-incorporation/corporation-tax"
 
   "Remove Stale Documents Job" must {
     "delete 2 documents" when {

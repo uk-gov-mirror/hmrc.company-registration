@@ -223,7 +223,7 @@ class SubmissionControllerISpec extends IntegrationSpecBase with LoginStub with 
   }
 
   val ctSubmissionUrl: String =
-    if (appConfig.useHip) "/RESTAdapter/business-registration/CT" else "/business-registration/corporation-tax"
+    if (appConfig.useHip) "/etmp/RESTAdapter/business-registration/CT" else "/business-registration/corporation-tax"
 
   "handleUserSubmission" must {
 
