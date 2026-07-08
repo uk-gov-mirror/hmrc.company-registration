@@ -36,10 +36,6 @@ object SubmissionEventDetail {
 
     def businessContactAuditWrites(contact: BusinessContactDetails) = BusinessContactDetails.auditWrites(contact)
 
-    def apiSubmissionState: JsObject = {
-      Json.obj("apiSubmissionState" -> "partial")
-    }
-
     val address = (detail.jsSubmission \ "registration" \ "corporationTax" \ "businessAddress").
       asOpt[BusinessAddress].fold {
         Json.obj()
@@ -70,6 +66,6 @@ object SubmissionEventDetail {
       CORP_TAX -> corporationTax.++
       (address).++
       (contactDetails)
-    ) ++ apiSubmissionState
+    ) ++ Json.obj("desSubmissionState" -> "partial")
   }
 }

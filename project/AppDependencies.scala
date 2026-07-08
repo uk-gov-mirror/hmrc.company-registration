@@ -7,7 +7,7 @@ object AppDependencies {
   import play.sbt.PlayImport.*
 
   private val playVersion              = "-play-30"
-  private val bootstrapPlayVersion     = "10.3.0"
+  private val bootstrapPlayVersion     = "10.7.1"
   private val domainVersion            = s"9.0.0"
   private val scalaTestVersion         = "3.2.19"
   private val scalatestPlusPlayVersion = "7.0.1"

@@ -34,7 +34,7 @@ class SubmissionEventService @Inject()(
                                 )(implicit val ec: ExecutionContext) extends AuditService with HttpErrorFunctions with Logging  {
 
   def ctSubmission(ackRef: String, submission: JsObject, journeyId: String)(implicit headerCarrier: HeaderCarrier): Future[HttpResponse] = {
-    metricsService.processDataResponseWithMetrics[HttpResponse](metricsService.apiSubmissionCrtTimer.time()) {
+    metricsService.processDataResponseWithMetrics[HttpResponse](metricsService.etmpSubmissionCrtTimer.time()) {
       routingConnector.ctSubmission(ackRef, submission, journeyId) map { response =>
         sendCTRegSubmissionEvent(ctRegSubmissionFromJson(journeyId, response.json.as[JsObject]))
         response
@@ -47,13 +47,13 @@ class SubmissionEventService @Inject()(
   }
 
   def topUpCTSubmission(ackRef: String, submission: JsObject, journeyId: String)(implicit headerCarrier: HeaderCarrier): Future[HttpResponse] = {
-    metricsService.processDataResponseWithMetrics[HttpResponse](metricsService.apiSubmissionCrtTimer.time()) {
+    metricsService.processDataResponseWithMetrics[HttpResponse](metricsService.etmpSubmissionCrtTimer.time()) {
       routingConnector.topUpCTSubmission(ackRef, submission, journeyId) map { response =>
         sendCTRegSubmissionEvent(ctRegSubmissionFromJson(journeyId, response.json.as[JsObject]))
         response
       } recoverWith {
         case ex: UpstreamErrorResponse if UpstreamErrorResponse.Upstream4xxResponse.unapply(ex).isDefined =>
-          sendEvent("ctRegistrationSubmissionFailed", Json.obj("submission" -> submission, JOURNEY_ID -> journeyId)) //ctTopupRegistrationSubmissionFailed ???
+          sendEvent("ctRegistrationSubmissionFailed", Json.obj("submission" -> submission, JOURNEY_ID -> journeyId))
           throw ex
       }
     }
