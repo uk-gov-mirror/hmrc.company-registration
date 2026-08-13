@@ -18,27 +18,35 @@ package config
 
 import models.VatThreshold
 import com.typesafe.config.{ConfigList, ConfigRenderOptions}
+
 import javax.inject.{Inject, Singleton}
 import uk.gov.hmrc.play.bootstrap.config.ServicesConfig
 import play.api.Configuration
 import play.api.libs.json.Json
 
-@Singleton
-class MicroserviceAppConfig @Inject()(config: ServicesConfig,configuration: Configuration) {
+import java.nio.charset.StandardCharsets
+import java.util.Base64
 
-  def getConfigString(key: String): String = config.getConfString(key, throw new RuntimeException(s"Could not find $key in config"))
+@Singleton
+class MicroserviceAppConfig @Inject()(servicesConfig: ServicesConfig, configuration: Configuration) {
+
+  def getConfigString(key: String): String = servicesConfig.getConfString(key, throw new RuntimeException(s"Could not find $key in config"))
 
   private val thresholdString: String = configuration.get[ConfigList]("vat-threshold").render(ConfigRenderOptions.concise())
-  val thresholds: Seq[VatThreshold] = Json.parse(thresholdString).as[List[VatThreshold]]
+  val thresholds: Seq[VatThreshold]   = Json.parse(thresholdString).as[List[VatThreshold]]
+  val threshold: Int             = servicesConfig.getConfInt("throttle-threshold", throw new Exception("throttle-threshold not found in config"))
 
-
-
-  val regime: String = getConfigString("regime")
+  val regime: String     = getConfigString("regime")
   val subscriber: String = getConfigString("subscriber")
 
-  val incorpInfoUrl: String = config.baseUrl("incorporation-information")
-  val compRegUrl: String = config.baseUrl("company-registration")
-  lazy val threshold: Int = config.getConfInt("throttle-threshold", throw new Exception("throttle-threshold not found in config"))
+  val incorpInfoUrl: String = servicesConfig.baseUrl("incorporation-information")
+  val compRegUrl: String    = servicesConfig.baseUrl("company-registration")
 
-
+  lazy val useHip: Boolean         = servicesConfig.getBoolean("features.hip")
+  lazy val desUrl: String          = servicesConfig.baseUrl("des-service")
+  lazy val hipUrl: String          = servicesConfig.baseUrl("hip")
+  lazy val hipClientId: String     = servicesConfig.getString("microservice.services.hip.clientId")
+  lazy val hipClientSecret: String = servicesConfig.getString("microservice.services.hip.clientSecret")
+  lazy val hipAuthToken: String    = Base64.getEncoder.encodeToString(s"$hipClientId:$hipClientSecret".getBytes(StandardCharsets.UTF_8))
+  lazy val apiRoute: String        = if (useHip) "HIP" else "DES"
 }

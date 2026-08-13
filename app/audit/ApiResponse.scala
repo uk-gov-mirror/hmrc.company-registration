@@ -18,10 +18,10 @@ package audit
 
 import play.api.libs.json.{Json, OFormat}
 
-case class DesResponse(processingDate: Option[String],
+case class ApiResponse(processingDate: Option[String],
                        acknowledgementReference: Option[String],
                        reason: Option[String])
 
-object DesResponse {
-  implicit val format: OFormat[DesResponse] = Json.format[DesResponse]
+object ApiResponse {
+  implicit val format: OFormat[ApiResponse] = Json.format[ApiResponse]
 }

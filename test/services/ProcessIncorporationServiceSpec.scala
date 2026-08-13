@@ -17,6 +17,7 @@
 package services
 
 import audit.FailedIncorporationAuditEventDetail
+import config.MicroserviceAppConfig
 import connectors._
 import fixtures.CorporationTaxRegistrationFixture
 import models._
@@ -44,11 +45,12 @@ class ProcessIncorporationServiceSpec extends PlaySpec with MockitoSugar with Co
   val mockIncorporationCheckAPIConnector: IncorporationCheckAPIConnector = mock[IncorporationCheckAPIConnector]
   val mockCTRepository: CorporationTaxRegistrationMongoRepository = mock[CorporationTaxRegistrationMongoRepository]
   val mockAccountService: AccountingDetailsService = mock[AccountingDetailsService]
-  val mockDesConnector: DesConnector = mock[DesConnector]
+  val mockSubmissionEventService: SubmissionEventService = mock[SubmissionEventService]
   val mockBRConnector: BusinessRegistrationConnector = mock[BusinessRegistrationConnector]
   val mockAuthConnector: AuthConnector = mock[AuthConnector]
   val mockAuditService: AuditService = mock[AuditService]
   val mockSendEmailService: SendEmailService = mock[SendEmailService]
+  val mockMicroserviceAppConfig: MicroserviceAppConfig = mock[MicroserviceAppConfig]
 
   override def beforeEach(): Unit = {
     resetMocks()
@@ -59,10 +61,11 @@ class ProcessIncorporationServiceSpec extends PlaySpec with MockitoSugar with Co
     mockAuditService,
     mockIncorporationCheckAPIConnector,
     mockCTRepository,
-    mockDesConnector,
+    mockSubmissionEventService,
     mockBRConnector,
     mockSendEmailService,
-    mockAccountService
+    mockAccountService,
+    mockMicroserviceAppConfig
   )
 
 
@@ -70,11 +73,13 @@ class ProcessIncorporationServiceSpec extends PlaySpec with MockitoSugar with Co
     val incorporationCheckAPIConnector: IncorporationCheckAPIConnector = mockIncorporationCheckAPIConnector
     val ctRepository: CorporationTaxRegistrationMongoRepository = mockCTRepository
     val accountingService: AccountingDetailsService = mockAccountService
-    val desConnector: DesConnector = mockDesConnector
+    val submissionEventService: SubmissionEventService = mockSubmissionEventService
     val brConnector: BusinessRegistrationConnector = mockBRConnector
     val auditService: AuditService = mockAuditService
     val microserviceAuthConnector: AuthConnector = mockAuthConnector
     val sendEmailService: SendEmailService = mockSendEmailService
+    val microserviceAppConfig: MicroserviceAppConfig = mockMicroserviceAppConfig
+
     override val addressLine4FixRegID: String = "false"
     override val amendedAddressLine4: String = ""
     override val blockageLoggingDay: String = "MON,TUE,WED,THU,FRI"
@@ -105,8 +110,11 @@ class ProcessIncorporationServiceSpec extends PlaySpec with MockitoSugar with Co
   val testAckRef: String = UUID.randomUUID.toString
   val testRegId: String = UUID.randomUUID.toString
   val transId: String = UUID.randomUUID().toString
-  val validCR: CorporationTaxRegistration = validHeldCTRegWithData(ackRef = Some(testAckRef)).copy(
-    accountsPreparation = Some(AccountPrepDetails(AccountPrepDetails.COMPANY_DEFINED, Some(date("2017-01-01")))), verifiedEmail = Some(Email("testemail.com", "", linkSent = true, verified = true, returnLinkEmailSent = true))
+  val validCR: CorporationTaxRegistration = validHeldCTRegWithData(ackRef = Some(testAckRef))
+    .copy(
+      accountsPreparation = Some(AccountPrepDetails(AccountPrepDetails.COMPANY_DEFINED, Some(date("2017-01-01")))),
+      verifiedEmail = Some(Email("testemail.com", "", linkSent = true, verified = true, returnLinkEmailSent = true)
+      )
   )
 
   import models.RegistrationStatus._
@@ -191,9 +199,9 @@ class ProcessIncorporationServiceSpec extends PlaySpec with MockitoSugar with Co
   val acceptedStatus = "Accepted"
   val rejectedStatus = "Rejected"
   val interimSubmission: JsObject = Json.parse(sub(testAckRef)).as[JsObject]
-  val validDesSubmission: JsObject = Json.parse(sub(testAckRef, Some((crn, exampleDate, exampleDate1, exampleDate2)))).as[JsObject]
-  val validTopUpDesSubmission: JsObject = Json.parse(topUpSub(acceptedStatus, testAckRef, crn, exampleDate, exampleDate1, exampleDate2)).as[JsObject]
-  val validRejectedTopUpDesSubmission: JsObject = Json.parse(topUpRejSub(rejectedStatus, testAckRef)).as[JsObject]
+  val validApiSubmission: JsObject = Json.parse(sub(testAckRef, Some((crn, exampleDate, exampleDate1, exampleDate2)))).as[JsObject]
+  val validTopUpApiSubmission: JsObject = Json.parse(topUpSub(acceptedStatus, testAckRef, crn, exampleDate, exampleDate1, exampleDate2)).as[JsObject]
+  val validRejectedTopUpApiSubmission: JsObject = Json.parse(topUpRejSub(rejectedStatus, testAckRef)).as[JsObject]
 
   "formatDate" must {
     "format a LocalDate into the format yyyy-mm-dd" in new Setup {
@@ -292,14 +300,13 @@ class ProcessIncorporationServiceSpec extends PlaySpec with MockitoSugar with Co
 
   "updateSubmission" must {
     trait SetupNoProcess {
-      object Service extends mockService {
-        implicit val hc: HeaderCarrier = new HeaderCarrier()
+      object Service extends mockService {mockAccountService
         implicit val ec: ExecutionContext = global
 
         override def updateHeldSubmission(item: IncorpUpdate, ctReg: CorporationTaxRegistration, journeyId: String, isAdmin: Boolean = false)(implicit hc: HeaderCarrier): Future[Boolean] = Future.successful(true)
       }
     }
-    "return true for a DES ready submission" in new SetupNoProcess {
+    "return true for a Http ready submission" in new SetupNoProcess {
       when(mockCTRepository.findOneBySelector(mockCTRepository.transIdSelector(ArgumentMatchers.eq(transId))))
         .thenReturn(Future.successful(Some(validCR)))
 
@@ -340,7 +347,8 @@ class ProcessIncorporationServiceSpec extends PlaySpec with MockitoSugar with Co
     class SetupBoolean(boole: Boolean) {
       object Service extends mockService {
         implicit val ec: ExecutionContext = global
-        override def updateSubmissionWithIncorporation(item: IncorpUpdate, ctReg: CorporationTaxRegistration, isAdmin: Boolean = false)(implicit hc: HeaderCarrier): Future[Boolean] = Future.successful(boole)
+        override def updateSubmissionWithIncorporation(item: IncorpUpdate, ctReg: CorporationTaxRegistration, isAdmin: Boolean = false)(
+          implicit hc: HeaderCarrier): Future[Boolean] = Future.successful(boole)
       }
     }
 
@@ -382,7 +390,7 @@ class ProcessIncorporationServiceSpec extends PlaySpec with MockitoSugar with Co
       )(ArgumentMatchers.any[HeaderCarrier](), ArgumentMatchers.eq(FailedIncorporationAuditEventDetail.format)))
         .thenReturn(Future.successful(Success))
 
-      when(mockDesConnector.topUpCTSubmission(ArgumentMatchers.any(), ArgumentMatchers.any(), ArgumentMatchers.any(), ArgumentMatchers.any())(ArgumentMatchers.any()))
+      when(mockSubmissionEventService.topUpCTSubmission(ArgumentMatchers.any(), ArgumentMatchers.any(), ArgumentMatchers.any())(ArgumentMatchers.any()))
         .thenReturn(Future.successful(HttpResponse(200, "")))
 
       when(mockCTRepository.removeTaxRegistrationById(ArgumentMatchers.eq(validCR.registrationID)))
@@ -414,28 +422,30 @@ class ProcessIncorporationServiceSpec extends PlaySpec with MockitoSugar with Co
       await(Service.processIncorporationUpdate(incorpRejected)) mustBe false
     }
 
-    "return an exception when processing a rejected incorporation and Des returns a 500" in new Setup {
-      when(mockCTRepository.findOneBySelector(mockCTRepository.transIdSelector(ArgumentMatchers.eq(transId))))
-        .thenReturn(Future.successful(Some(validCR)))
-      when(mockCTRepository.updateSubmissionStatus(ArgumentMatchers.any(), ArgumentMatchers.any())).thenReturn(Future.successful("rejected"))
-      when(mockAuditService.sendEvent(
-        ArgumentMatchers.eq("failedIncorpInformation"),
-        ArgumentMatchers.eq(FailedIncorporationAuditEventDetail(
-          validCR.registrationID,
-          "testReason"
-        )),
-        ArgumentMatchers.any()
-      )(ArgumentMatchers.any[HeaderCarrier](), ArgumentMatchers.eq(FailedIncorporationAuditEventDetail.format)))
-        .thenReturn(Future.successful(Success))
-      when(mockDesConnector.topUpCTSubmission(ArgumentMatchers.any(), ArgumentMatchers.any(), ArgumentMatchers.any(), ArgumentMatchers.any())(ArgumentMatchers.any()))
-        .thenReturn(Future.failed(new InternalServerException("DES returned a 500")))
-      when(mockCTRepository.removeTaxRegistrationById(ArgumentMatchers.eq(validCR.registrationID)))
-        .thenReturn(Future.successful(true))
-      when(mockBRConnector.removeMetadata(ArgumentMatchers.eq(validCR.registrationID))(ArgumentMatchers.any()))
-        .thenReturn(Future.successful(true))
+    for (apiRoute <- Seq("DES", "HIP")) {
+      s"return an exception when processing a rejected incorporation and $apiRoute returns a 500" in new Setup {
+        when(mockCTRepository.findOneBySelector(mockCTRepository.transIdSelector(ArgumentMatchers.eq(transId))))
+          .thenReturn(Future.successful(Some(validCR)))
+        when(mockCTRepository.updateSubmissionStatus(ArgumentMatchers.any(), ArgumentMatchers.any())).thenReturn(Future.successful("rejected"))
+        when(mockAuditService.sendEvent(
+          ArgumentMatchers.eq("failedIncorpInformation"),
+          ArgumentMatchers.eq(FailedIncorporationAuditEventDetail(
+            validCR.registrationID,
+            "testReason"
+          )),
+          ArgumentMatchers.any()
+        )(ArgumentMatchers.any[HeaderCarrier](), ArgumentMatchers.eq(FailedIncorporationAuditEventDetail.format)))
+          .thenReturn(Future.successful(Success))
+        when(mockSubmissionEventService.topUpCTSubmission(ArgumentMatchers.any(), ArgumentMatchers.any(), ArgumentMatchers.any())(ArgumentMatchers.any()))
+          .thenReturn(Future.failed(new InternalServerException(s"$apiRoute returned a 500")))
+        when(mockCTRepository.removeTaxRegistrationById(ArgumentMatchers.eq(validCR.registrationID)))
+          .thenReturn(Future.successful(true))
+        when(mockBRConnector.removeMetadata(ArgumentMatchers.eq(validCR.registrationID))(ArgumentMatchers.any()))
+          .thenReturn(Future.successful(true))
 
-      intercept[InternalServerException] {
-        await(Service.processIncorporationUpdate(incorpRejected))
+        intercept[InternalServerException] {
+          await(Service.processIncorporationUpdate(incorpRejected))
+        }
       }
     }
 

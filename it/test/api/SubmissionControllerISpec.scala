@@ -14,14 +14,14 @@
  * limitations under the License.
  */
 
-package test.api
+package api
 
 import auth.CryptoSCRS
 import com.github.tomakehurst.wiremock.client.WireMock._
-import config.LangConstants
+import config.{LangConstants, MicroserviceAppConfig}
 import models.RegistrationStatus._
 import models._
-import models.des.BusinessAddress
+import models.api.BusinessAddress
 import org.mongodb.scala.result.InsertOneResult
 import play.api.Application
 import play.api.http.HeaderNames
@@ -41,7 +41,9 @@ class SubmissionControllerISpec extends IntegrationSpecBase with LoginStub with 
   val mockHost: String = WiremockHelper.wiremockHost
   val mockPort: Int = WiremockHelper.wiremockPort
   val mockUrl: String = s"http://$mockHost:$mockPort"
+
   lazy val defaultCookieSigner: DefaultCookieSigner = app.injector.instanceOf[DefaultCookieSigner]
+  lazy val appConfig = app.injector.instanceOf[MicroserviceAppConfig]
 
 
   val additionalConfiguration: Map[String, Any] = Map(
@@ -64,7 +66,9 @@ class SubmissionControllerISpec extends IntegrationSpecBase with LoginStub with 
     "microservice.services.des-service.environment" -> "local",
     "microservice.services.des-service.authorization-token" -> "testAuthToken",
     "microservice.services.des-topup-service.host" -> mockHost,
-    "microservice.services.des-topup-service.port" -> mockPort
+    "microservice.services.des-topup-service.port" -> mockPort,
+    "microservice.services.hip.host" -> s"$mockHost",
+    "microservice.services.hip.port" -> s"$mockPort"
   )
 
   override implicit lazy val app: Application = new GuiceApplicationBuilder()
@@ -218,6 +222,9 @@ class SubmissionControllerISpec extends IntegrationSpecBase with LoginStub with 
     json.toString
   }
 
+  val ctSubmissionUrl: String =
+    if (appConfig.useHip) "/etmp/RESTAdapter/business-registration/CT" else "/business-registration/corporation-tax"
+
   "handleUserSubmission" must {
 
     val authProviderId: String = "testAuthProviderId"
@@ -247,7 +254,7 @@ class SubmissionControllerISpec extends IntegrationSpecBase with LoginStub with 
       ctRepository.findAll.head.confirmationReferences mustBe Some(confRefsWithPayment)
     }
 
-    "submit to DES" when {
+    "submit to API" when {
       val businessRegistrationResponse = Json.obj(
         "registrationID" -> s"$regId",
         "formCreationTimestamp" -> "2017-08-09T11:48:20+01:00",
@@ -261,7 +268,7 @@ class SubmissionControllerISpec extends IntegrationSpecBase with LoginStub with 
         ctRepository.insert(draftRegistration)
 
         stubGet(s"/business-registration/business-tax-registration/$regId", 200, businessRegistrationResponse)
-        stubPost(s"/business-registration/corporation-tax", 200, """{"a": "b"}""")
+        stubPost(ctSubmissionUrl, 200, """{"a": "b"}""")
         stubFor(post(urlEqualTo("/incorporation-information/subscribe/trans-id-2345/regime/ctax/subscriber/SCRS?force=true"))
           .willReturn(
             aResponse().
@@ -280,13 +287,13 @@ class SubmissionControllerISpec extends IntegrationSpecBase with LoginStub with 
         reg.status mustBe HELD
       }
 
-      "registration is in Draft status and update Confirmation References but DES submission failed 403 (old HO6)" in new Setup {
+      "registration is in Draft status and update Confirmation References but API submission failed 403 (old HO6)" in new Setup {
         stubAuthorise(200, authorisedRetrievals)
 
         ctRepository.insert(draftRegistration)
 
         stubGet(s"/business-registration/business-tax-registration/$regId", 200, businessRegistrationResponse)
-        stubPost(s"/business-registration/corporation-tax", 403, "")
+        stubPost(ctSubmissionUrl, 403, "")
         stubFor(post(urlEqualTo("/incorporation-information/subscribe/trans-id-2345/regime/ctax/subscriber/SCRS?force=true"))
           .willReturn(
             aResponse().
@@ -304,13 +311,13 @@ class SubmissionControllerISpec extends IntegrationSpecBase with LoginStub with 
         reg.status mustBe RegistrationStatus.LOCKED
       }
 
-      "registration is in Draft status and update Confirmation References but DES submission failed 429 (old HO6)" in new Setup {
+      "registration is in Draft status and update Confirmation References but API submission failed 429 (old HO6)" in new Setup {
         stubAuthorise(200, authorisedRetrievals)
 
         ctRepository.insert(draftRegistration)
 
         stubGet(s"/business-registration/business-tax-registration/$regId", 200, businessRegistrationResponse)
-        stubPost(s"/business-registration/corporation-tax", 429, "")
+        stubPost(ctSubmissionUrl, 429, "")
         stubFor(post(urlEqualTo("/incorporation-information/subscribe/trans-id-2345/regime/ctax/subscriber/SCRS?force=true"))
           .willReturn(
             aResponse().
@@ -350,7 +357,7 @@ class SubmissionControllerISpec extends IntegrationSpecBase with LoginStub with 
         ctRepository.insert(lockedRegistration)
 
         stubGet(s"/business-registration/business-tax-registration/$regId", 200, businessRegistrationResponse)
-        stubPost(s"/business-registration/corporation-tax", 200, """{"a": "b"}""")
+        stubPost(ctSubmissionUrl, 200, """{"a": "b"}""")
 
         val response: WSResponse = await(client(s"/$regId/confirmation-references").put(jsonConfirmationRefs(ackRef, Some(payRef), Some(payAmount))))
         response.status mustBe 200
@@ -375,7 +382,7 @@ class SubmissionControllerISpec extends IntegrationSpecBase with LoginStub with 
         ctRepository.insert(draftRegistration)
 
         stubGet(s"/business-registration/business-tax-registration/$regId", 200, businessRegistrationResponse)
-        stubPost(s"/business-registration/corporation-tax", 200, """{"a": "b"}""")
+        stubPost(ctSubmissionUrl, 200, """{"a": "b"}""")
         stubFor(post(urlEqualTo("/incorporation-information/subscribe/trans-id-2345/regime/ctax/subscriber/SCRS?force=true"))
           .willReturn(
             aResponse().
@@ -414,7 +421,7 @@ class SubmissionControllerISpec extends IntegrationSpecBase with LoginStub with 
         ))
 
         stubGet(s"/business-registration/business-tax-registration/$regId", 200, businessRegistrationResponse)
-        stubPost(s"/business-registration/corporation-tax", 200, """{"a": "b"}""")
+        stubPost(ctSubmissionUrl, 200, """{"a": "b"}""")
         stubFor(post(urlEqualTo("/incorporation-information/subscribe/trans-id-2345/regime/ctax/subscriber/SCRS?force=true"))
           .willReturn(
             aResponse().
@@ -471,7 +478,7 @@ class SubmissionControllerISpec extends IntegrationSpecBase with LoginStub with 
         ))
 
         stubGet(s"/business-registration/business-tax-registration/$regId", 200, businessRegistrationResponse)
-        stubPost(s"/business-registration/corporation-tax", 200, """{"a": "b"}""")
+        stubPost(ctSubmissionUrl, 200, """{"a": "b"}""")
         stubFor(post(urlEqualTo("/incorporation-information/subscribe/trans-id-2345/regime/ctax/subscriber/SCRS?force=true"))
           .willReturn(
             aResponse().
@@ -489,7 +496,7 @@ class SubmissionControllerISpec extends IntegrationSpecBase with LoginStub with 
         reg.sessionIdentifiers mustBe None
         reg.status mustBe HELD
 
-        val requestBody: JsObject = getPOSTRequestJsonBody("/business-registration/corporation-tax").as[JsObject]
+        val requestBody: JsObject = getPOSTRequestJsonBody(ctSubmissionUrl).as[JsObject]
         val registration: JsObject = (requestBody \ "registration" \ "metadata").as[JsObject] - "sessionId" - "formCreationTimestamp"
         val corp: JsObject = (requestBody \ "registration" \ "corporationTax").as[JsObject]
         val res: JsObject = requestBody - "registration" ++ Json.obj("registration" -> Json.obj("metadata" -> registration, "corporationTax" -> corp))
@@ -574,7 +581,7 @@ class SubmissionControllerISpec extends IntegrationSpecBase with LoginStub with 
         ))
 
         stubGet(s"/business-registration/business-tax-registration/$regId", 200, businessRegistrationResponse)
-        stubPost(s"/business-registration/corporation-tax", 200, """{"a": "b"}""")
+        stubPost(ctSubmissionUrl, 200, """{"a": "b"}""")
         stubFor(post(urlEqualTo("/incorporation-information/subscribe/trans-id-2345/regime/ctax/subscriber/SCRS?force=true"))
           .willReturn(
             aResponse().
@@ -592,7 +599,7 @@ class SubmissionControllerISpec extends IntegrationSpecBase with LoginStub with 
         reg.sessionIdentifiers mustBe None
         reg.status mustBe HELD
 
-        val requestBody: JsObject = getPOSTRequestJsonBody("/business-registration/corporation-tax").as[JsObject]
+        val requestBody: JsObject = getPOSTRequestJsonBody(ctSubmissionUrl).as[JsObject]
         val registration: JsObject = (requestBody \ "registration" \ "metadata").as[JsObject] - "sessionId" - "formCreationTimestamp"
         val corp: JsObject = (requestBody \ "registration" \ "corporationTax").as[JsObject]
         val res: JsObject = requestBody - "registration" ++ Json.obj("registration" -> Json.obj("metadata" -> registration, "corporationTax" -> corp))
@@ -671,7 +678,7 @@ class SubmissionControllerISpec extends IntegrationSpecBase with LoginStub with 
           ))
 
         stubGet(s"/business-registration/business-tax-registration/$regId", 200, businessRegistrationResponse)
-        stubPost(s"/business-registration/corporation-tax", 200, """{"a": "b"}""")
+        stubPost(ctSubmissionUrl, 200, """{"a": "b"}""")
         stubFor(post(urlEqualTo("/incorporation-information/subscribe/trans-id-2345/regime/ctax/subscriber/SCRS?force=true"))
           .willReturn(
             aResponse().
@@ -689,7 +696,7 @@ class SubmissionControllerISpec extends IntegrationSpecBase with LoginStub with 
         reg.sessionIdentifiers mustBe None
         reg.status mustBe HELD
 
-        val requestBody: JsObject = getPOSTRequestJsonBody("/business-registration/corporation-tax").as[JsObject]
+        val requestBody: JsObject = getPOSTRequestJsonBody(ctSubmissionUrl).as[JsObject]
         val registration: JsObject = (requestBody \ "registration" \ "metadata").as[JsObject] - "sessionId" - "formCreationTimestamp"
         val corp: JsObject = (requestBody \ "registration" \ "corporationTax").as[JsObject]
         val res: JsObject = requestBody - "registration" ++ Json.obj("registration" -> Json.obj("metadata" -> registration, "corporationTax" -> corp))
@@ -790,7 +797,7 @@ class SubmissionControllerISpec extends IntegrationSpecBase with LoginStub with 
 
 
         stubGet(s"/business-registration/business-tax-registration/$regId", 200, businessRegistrationResponse)
-        stubPost(s"/business-registration/corporation-tax", 200, """{"a": "b"}""")
+        stubPost(ctSubmissionUrl, 200, """{"a": "b"}""")
         stubFor(post(urlEqualTo("/incorporation-information/subscribe/trans-id-2345/regime/ctax/subscriber/SCRS?force=true"))
           .willReturn(
             aResponse().
@@ -808,7 +815,7 @@ class SubmissionControllerISpec extends IntegrationSpecBase with LoginStub with 
         reg.sessionIdentifiers mustBe None
         reg.status mustBe HELD
 
-        val requestBody: JsObject = getPOSTRequestJsonBody("/business-registration/corporation-tax").as[JsObject]
+        val requestBody: JsObject = getPOSTRequestJsonBody(ctSubmissionUrl).as[JsObject]
         val registration: JsObject = (requestBody \ "registration" \ "metadata").as[JsObject] - "sessionId" - "formCreationTimestamp"
         val corp: JsObject = (requestBody \ "registration" \ "corporationTax").as[JsObject]
         val res: JsObject = requestBody.as[JsObject] - "registration" ++ Json.obj("registration" -> Json.obj("metadata" -> registration, "corporationTax" -> corp))
@@ -902,7 +909,7 @@ class SubmissionControllerISpec extends IntegrationSpecBase with LoginStub with 
 
 
         stubGet(s"/business-registration/business-tax-registration/$regId", 200, businessRegistrationResponse)
-        stubPost(s"/business-registration/corporation-tax", 200, """{"a": "b"}""")
+        stubPost(ctSubmissionUrl, 200, """{"a": "b"}""")
         stubFor(post(urlEqualTo("/incorporation-information/subscribe/trans-id-2345/regime/ctax/subscriber/SCRS?force=true"))
           .willReturn(
             aResponse().
@@ -920,7 +927,7 @@ class SubmissionControllerISpec extends IntegrationSpecBase with LoginStub with 
         reg.sessionIdentifiers mustBe None
         reg.status mustBe HELD
 
-        val requestBody: JsObject = getPOSTRequestJsonBody("/business-registration/corporation-tax").as[JsObject]
+        val requestBody: JsObject = getPOSTRequestJsonBody(ctSubmissionUrl).as[JsObject]
         val registration: JsObject = (requestBody \ "registration" \ "metadata").as[JsObject] - "sessionId" - "formCreationTimestamp"
         val corp: JsObject = (requestBody \ "registration" \ "corporationTax").as[JsObject]
         val res: JsObject = requestBody.as[JsObject] - "registration" ++ Json.obj("registration" -> Json.obj("metadata" -> registration, "corporationTax" -> corp))
@@ -963,7 +970,7 @@ class SubmissionControllerISpec extends IntegrationSpecBase with LoginStub with 
         res mustBe expectedJsonBody
       }
 
-      "registration is in Draft status and update Confirmation References with Ack Ref but DES submission FAILED 403 (new HO5-1)" in new Setup {
+      "registration is in Draft status and update Confirmation References with Ack Ref but API submission FAILED 403 (new HO5-1)" in new Setup {
         stubAuthorise(200, authorisedRetrievals)
 
         val confRefsWithoutPayment: ConfirmationReferences = ConfirmationReferences(
@@ -976,7 +983,7 @@ class SubmissionControllerISpec extends IntegrationSpecBase with LoginStub with 
         ctRepository.insert(draftRegistration)
 
         stubGet(s"/business-registration/business-tax-registration/$regId", 200, businessRegistrationResponse)
-        stubPost(s"/business-registration/corporation-tax", 403, "")
+        stubPost(ctSubmissionUrl, 403, "")
         stubFor(post(urlEqualTo("/incorporation-information/subscribe/trans-id-2345/regime/ctax/subscriber/SCRS?force=true"))
           .willReturn(
             aResponse().
@@ -994,7 +1001,7 @@ class SubmissionControllerISpec extends IntegrationSpecBase with LoginStub with 
         reg.status mustBe RegistrationStatus.LOCKED
       }
 
-      "registration is in Draft status and update Confirmation References with Ack Ref but DES submission FAILED 429 (new HO5-1)" in new Setup {
+      "registration is in Draft status and update Confirmation References with Ack Ref but API submission FAILED 429 (new HO5-1)" in new Setup {
         stubAuthorise(200, authorisedRetrievals)
 
         val confRefsWithoutPayment: ConfirmationReferences = ConfirmationReferences(
@@ -1007,7 +1014,7 @@ class SubmissionControllerISpec extends IntegrationSpecBase with LoginStub with 
         ctRepository.insert(draftRegistration)
 
         stubGet(s"/business-registration/business-tax-registration/$regId", 200, businessRegistrationResponse)
-        stubPost(s"/business-registration/corporation-tax", 429, "")
+        stubPost(ctSubmissionUrl, 429, "")
         stubFor(post(urlEqualTo("/incorporation-information/subscribe/trans-id-2345/regime/ctax/subscriber/SCRS?force=true"))
           .willReturn(
             aResponse().
@@ -1039,7 +1046,7 @@ class SubmissionControllerISpec extends IntegrationSpecBase with LoginStub with 
         ctRepository.insert(lockedRegistration)
 
         stubGet(s"/business-registration/business-tax-registration/$regId", 200, businessRegistrationResponse)
-        stubPost(s"/business-registration/corporation-tax", 200, """{"a": "b"}""")
+        stubPost(ctSubmissionUrl, 200, """{"a": "b"}""")
         stubFor(post(urlEqualTo("/incorporation-information/subscribe/trans-id-2345/regime/ctax/subscriber/SCRS?force=true"))
           .willReturn(
             aResponse().

@@ -23,7 +23,7 @@ import helpers.BaseSpec
 import mocks.AuthorisationMocks
 import models.RegistrationStatus._
 import models._
-import models.des.BusinessAddress
+import models.api.BusinessAddress
 import org.mockito.ArgumentMatchers.{eq => eqTo}
 import org.mockito.Mockito._
 import org.scalatest.concurrent.Eventually
@@ -52,7 +52,7 @@ class CorporationTaxRegistrationServiceSpec extends BaseSpec with AuthorisationM
   val mockBRConnector: BusinessRegistrationConnector = mock[BusinessRegistrationConnector]
   val mockAuditConnector: AuditConnector = mock[AuditConnector]
   val mockIIConnector: IncorporationInformationConnector = mock[IncorporationInformationConnector]
-  val mockDesConnector: DesConnector = mock[DesConnector]
+  val mockSubmissionEventService: SubmissionEventService = mock[SubmissionEventService]
 
   val dateTime: Instant = Instant.parse("2016-10-27T16:28:59.000Z")
 
@@ -66,7 +66,7 @@ class CorporationTaxRegistrationServiceSpec extends BaseSpec with AuthorisationM
   override protected def beforeEach(): Unit = {
     reset(
       mockCTDataRepository, mockSequenceMongoRepository, mockAuthConnector, mockBRConnector,
-      mockIncorporationCheckAPIConnector, mockAuditConnector, mockIIConnector, mockDesConnector, mockLockService
+      mockIncorporationCheckAPIConnector, mockAuditConnector, mockIIConnector, mockSubmissionEventService, mockLockService
     )
   }
 
@@ -79,7 +79,7 @@ class CorporationTaxRegistrationServiceSpec extends BaseSpec with AuthorisationM
       val submissionCheckAPIConnector: IncorporationCheckAPIConnector = mockIncorporationCheckAPIConnector
       val auditConnector: AuditConnector = mockAuditConnector
       val incorpInfoConnector: IncorporationInformationConnector = mockIIConnector
-      val desConnector: DesConnector = mockDesConnector
+      val submissionEventService: SubmissionEventService = mockSubmissionEventService
       val instantNow: Instant = dateTime
       override val lockKeeper: LockService = mockLockService
       implicit val ec: ExecutionContext = global
@@ -111,7 +111,7 @@ class CorporationTaxRegistrationServiceSpec extends BaseSpec with AuthorisationM
     )
   }
 
-  def partialDesSubmission(ackRef: String, timestamp: String = "2016-10-27T17:06:23.000Z"): JsObject = Json.parse(
+  def partialApiSubmission(ackRef: String, timestamp: String = "2016-10-27T17:06:23.000Z"): JsObject = Json.parse(
     s"""
        |{
        | "acknowledgementReference":"$ackRef",

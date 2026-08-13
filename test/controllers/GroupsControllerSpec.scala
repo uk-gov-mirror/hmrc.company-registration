@@ -19,7 +19,7 @@ package controllers
 import helpers.BaseSpec
 import mocks.AuthorisationMocks
 import models._
-import models.des.BusinessAddress
+import models.api.BusinessAddress
 import org.apache.pekko.actor.ActorSystem
 import org.apache.pekko.stream.Materializer
 import org.mockito.ArgumentMatchers.{any, eq => eqTo}

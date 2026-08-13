@@ -16,7 +16,7 @@
 
 package audit
 
-import models.des._
+import models.api._
 import org.scalatestplus.play.PlaySpec
 import play.api.libs.json.{JsObject, Json}
 
@@ -83,7 +83,7 @@ class UserRegistrationSubmissionEventSpec extends PlaySpec {
         Some(transactionId),
         Some(uprn),
         "LOOKUP",
-        Json.toJson(InterimDesRegistration(
+        Json.toJson(InterimApiRegistration(
           ackRef,
           Metadata(
             "sessionId", "credId", "eng", Instant.parse(timestamp), CompletionCapacity("Director")
@@ -140,7 +140,7 @@ class UserRegistrationSubmissionEventSpec extends PlaySpec {
         None,
         Some(uprn),
         "LOOKUP",
-        Json.toJson(InterimDesRegistration(
+        Json.toJson(InterimApiRegistration(
           ackRef,
           Metadata(
             "sessionId", "credId", "eng", Instant.parse(timestamp), CompletionCapacity("Director")

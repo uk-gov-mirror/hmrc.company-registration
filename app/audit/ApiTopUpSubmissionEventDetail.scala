@@ -21,7 +21,7 @@ import uk.gov.hmrc.http.HeaderCarrier
 
 import java.time.LocalDate
 
-case class DesTopUpSubmissionEventDetail(journeyId: String,
+case class ApiTopUpSubmissionEventDetail(journeyId: String,
                                          acknowledgementReference: String,
                                          incorporationStatus: String,
                                          intendedAccountsPreparationDate: Option[LocalDate],
@@ -30,6 +30,6 @@ case class DesTopUpSubmissionEventDetail(journeyId: String,
                                          crn: Option[String],
                                          rejectedAsNotPaid: Option[Boolean] = None)
 
-object DesTopUpSubmissionEventDetail {
-  implicit val writes: OWrites[DesTopUpSubmissionEventDetail] = Json.writes[DesTopUpSubmissionEventDetail]
+object ApiTopUpSubmissionEventDetail {
+  implicit val writes: OWrites[ApiTopUpSubmissionEventDetail] = Json.writes[ApiTopUpSubmissionEventDetail]
 }

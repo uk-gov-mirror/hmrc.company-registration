@@ -18,7 +18,7 @@ package services.admin
 
 import audit._
 import config.MicroserviceAppConfig
-import connectors.{BusinessRegistrationConnector, DesConnector, IncorporationInformationConnector}
+import connectors.{BusinessRegistrationConnector, IncorporationInformationConnector}
 import helpers.DateFormatter
 import jobs.{LockResponse, MongoLocked, ScheduledService, UnlockingFailed}
 import models.RegistrationStatus._
@@ -26,7 +26,7 @@ import models.{ConfirmationReferences, CorporationTaxRegistration, HO6Registrati
 import play.api.libs.json.{JsObject, Json}
 import play.api.mvc.Request
 import repositories.{CorporationTaxRegistrationMongoRepository, Repositories}
-import services.{AuditService, FailedToDeleteSubmissionData}
+import services.{AuditService, FailedToDeleteSubmissionData, SubmissionEventService}
 import uk.gov.hmrc.http.{HeaderCarrier, NotFoundException}
 import uk.gov.hmrc.mongo.lock.LockService
 import uk.gov.hmrc.play.bootstrap.config.ServicesConfig
@@ -41,7 +41,7 @@ import scala.concurrent.{ExecutionContext, Future}
 @Singleton
 class AdminServiceImpl @Inject()(val corpTaxRegRepo: CorporationTaxRegistrationMongoRepository,
                                  val brConnector: BusinessRegistrationConnector,
-                                 val desConnector: DesConnector,
+                                 val submissionEventService: SubmissionEventService,
                                  val repositories: Repositories,
                                  val incorpInfoConnector: IncorporationInformationConnector, microserviceAppConfig: MicroserviceAppConfig,
                                  val auditService: AuditService,
@@ -60,7 +60,7 @@ trait AdminService extends ScheduledService[Either[Int, LockResponse]] with Date
 
   implicit val ec: ExecutionContext
   val corpTaxRegRepo: CorporationTaxRegistrationMongoRepository
-  val desConnector: DesConnector
+  val submissionEventService: SubmissionEventService
   val auditService: AuditService
   val incorpInfoConnector: IncorporationInformationConnector
   val brConnector: BusinessRegistrationConnector
@@ -214,8 +214,8 @@ trait AdminService extends ScheduledService[Either[Int, LockResponse]] with Date
     if (info.status != DRAFT) {
       val ackRef = confRefs.acknowledgementReference
       for {
-        _ <- desConnector.topUpCTSubmission(ackRef, submission(ackRef), info.regId)
-        _ <- auditService.sendEvent("ctRegistrationAdditionalData", DesTopUpSubmissionEventDetail(
+        _ <- submissionEventService.topUpCTSubmission(ackRef, submission(ackRef), info.regId)
+        _ <- auditService.sendEvent("ctRegistrationAdditionalData", ApiTopUpSubmissionEventDetail(
           info.regId,
           ackRef,
           "Rejected",

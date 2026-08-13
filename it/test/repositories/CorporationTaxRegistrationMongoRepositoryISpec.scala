@@ -20,7 +20,7 @@ import auth.CryptoSCRS
 import config.LangConstants
 import models.RegistrationStatus.{LOCKED, _}
 import models._
-import models.des.BusinessAddress
+import models.api.BusinessAddress
 import models.validation.MongoValidation
 import org.mongodb.scala.bson.conversions.Bson
 import org.mongodb.scala.model.Filters

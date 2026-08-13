@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package models.des
+package models.api
 
 import models._
 import org.scalatestplus.play.PlaySpec
@@ -23,7 +23,7 @@ import play.api.libs.json.{JsObject, Json}
 import java.time.Instant
 
 
-class InterimDesRegistrationSpec extends PlaySpec {
+class InterimApiRegistrationSpec extends PlaySpec {
 
   "CompletionCapacity" must {
     "Construct a director" in { CompletionCapacity("Director") mustBe Director }
@@ -49,9 +49,9 @@ class InterimDesRegistrationSpec extends PlaySpec {
                                |  "declareAccurateAndComplete": true
                                |}""".stripMargin
 
-      val desModel = Metadata( "session-123", "cred-123", "ENG", Instant.ofEpochSecond(0), CompletionCapacity(Director.text) )
+      val metadata = Metadata( "session-123", "cred-123", "ENG", Instant.ofEpochSecond(0), CompletionCapacity(Director.text) )
 
-      val result = Json.toJson[Metadata](desModel)
+      val result = Json.toJson[Metadata](metadata)
       result.getClass mustBe classOf[JsObject]
       result mustBe Json.parse(expectedJson)
     }
@@ -68,9 +68,9 @@ class InterimDesRegistrationSpec extends PlaySpec {
                                |  "declareAccurateAndComplete": true
                                |}""".stripMargin
 
-      val desModel = Metadata( "session-123", "cred-123", "ENG", Instant.ofEpochSecond(0), CompletionCapacity(Agent.text) )
+      val metadata = Metadata( "session-123", "cred-123", "ENG", Instant.ofEpochSecond(0), CompletionCapacity(Agent.text) )
 
-      val result = Json.toJson[Metadata](desModel)
+      val result = Json.toJson[Metadata](metadata)
       result.getClass mustBe classOf[JsObject]
       result mustBe Json.parse(expectedJson)
     }
@@ -87,9 +87,9 @@ class InterimDesRegistrationSpec extends PlaySpec {
                                      |  "declareAccurateAndComplete": true
                                      |}""".stripMargin
 
-      val desModel = Metadata( "session-123", "cred-123", "ENG", Instant.ofEpochSecond(0), CompletionCapacity(Secretary.text) )
+      val metadata = Metadata( "session-123", "cred-123", "ENG", Instant.ofEpochSecond(0), CompletionCapacity(Secretary.text) )
 
-      val result = Json.toJson[Metadata](desModel)
+      val result = Json.toJson[Metadata](metadata)
       result.getClass mustBe classOf[JsObject]
       result mustBe Json.parse(expectedJson)
     }
@@ -107,9 +107,9 @@ class InterimDesRegistrationSpec extends PlaySpec {
                                       |  "declareAccurateAndComplete": true
                                       |}""".stripMargin
 
-      val desModel = Metadata( "session-123", "cred-123", "ENG", Instant.ofEpochSecond(0), CompletionCapacity("other") )
+      val metadata = Metadata( "session-123", "cred-123", "ENG", Instant.ofEpochSecond(0), CompletionCapacity("other") )
 
-      val result = Json.toJson[Metadata](desModel)
+      val result = Json.toJson[Metadata](metadata)
       result.getClass mustBe classOf[JsObject]
       result mustBe Json.parse(expectedJson)
     }
@@ -126,9 +126,9 @@ class InterimDesRegistrationSpec extends PlaySpec {
                                       |  "declareAccurateAndComplete": true
                                       |}""".stripMargin
 
-      val desModel = Metadata( "session-123", "cred-123", "ENG", Instant.ofEpochSecond(0), CompletionCapacity("Director") )
+      val metadata = Metadata( "session-123", "cred-123", "ENG", Instant.ofEpochSecond(0), CompletionCapacity("Director") )
 
-      val result = Json.toJson[Metadata](desModel)
+      val result = Json.toJson[Metadata](metadata)
       result.getClass mustBe classOf[JsObject]
       result mustBe Json.parse(expectedJson)
     }
@@ -158,7 +158,7 @@ class InterimDesRegistrationSpec extends PlaySpec {
                                       |                           "email" : "d@ddd.com"
                                       |                             }
                                       |}""".stripMargin
-      val desBusinessAddress = BusinessAddress(
+      val apiBusinessAddress = BusinessAddress(
         "1 Acacia Avenue",
         "Hollinswood",
         Some("Telford"),
@@ -167,26 +167,26 @@ class InterimDesRegistrationSpec extends PlaySpec {
         Some("England")
       )
 
-      val desBusinessContactContactDetails = BusinessContactDetails(
+      val apiBusinessContactContactDetails = BusinessContactDetails(
         Some("0121 000 000"),
         Some("0700 000 000"),
         Some("d@ddd.com")
       )
 
-      val desModel = InterimCorporationTax(
+      val interimCorporationTax = InterimCorporationTax(
                                   "DG Limited",
                                   returnsOnCT61 = false,
-                                  Some(desBusinessAddress),
-                                  desBusinessContactContactDetails
+                                  Some(apiBusinessAddress),
+                                  apiBusinessContactContactDetails
                                 )
-      val result = Json.toJson[InterimCorporationTax](desModel)
+      val result = Json.toJson[InterimCorporationTax](interimCorporationTax)
       result.getClass mustBe classOf[JsObject]
       result mustBe Json.parse(expectedJson)
     }
 
   }
 
-  "The Interim Des Registration model" must {
+  "The Interim API Registration model" must {
 
     "Be able to be parsed into JSON when groups is NONE" in {
 
@@ -227,7 +227,7 @@ class InterimDesRegistrationSpec extends PlaySpec {
                                       |}""".stripMargin
 
       val testMetadata = Metadata( "session-123", "cred-123", "ENG", Instant.ofEpochSecond(0), Director )
-      val desBusinessAddress = BusinessAddress(
+      val businessAddress = BusinessAddress(
         "1 Acacia Avenue",
         "Hollinswood",
         Some("Telford"),
@@ -236,7 +236,7 @@ class InterimDesRegistrationSpec extends PlaySpec {
         Some("England")
       )
 
-      val desBusinessContactContactDetails = BusinessContactDetails(
+      val businessContactDetails = BusinessContactDetails(
         Some("0121 000 000"),
         Some("0700 000 000"),
         Some("d@ddd.com")
@@ -245,14 +245,14 @@ class InterimDesRegistrationSpec extends PlaySpec {
       val testInterimCorporationTax = InterimCorporationTax(
         "DG Limited",
         returnsOnCT61 = false,
-        Some(desBusinessAddress),
-        desBusinessContactContactDetails,
+        Some(businessAddress),
+        businessContactDetails,
         groups = None
       )
 
-      val testModel1 = InterimDesRegistration( "ackRef1", testMetadata, testInterimCorporationTax)
+      val testModel1 = InterimApiRegistration( "ackRef1", testMetadata, testInterimCorporationTax)
 
-      val result = Json.toJson[InterimDesRegistration](testModel1)
+      val result = Json.toJson[InterimApiRegistration](testModel1)
       result.getClass mustBe classOf[JsObject]
       result mustBe Json.parse(expectedJson)
     }
@@ -305,7 +305,7 @@ class InterimDesRegistrationSpec extends PlaySpec {
                                      |}""".stripMargin
 
       val testMetadata = Metadata( "session-123", "cred-123", "ENG", Instant.ofEpochSecond(0), Director )
-      val desBusinessAddress = BusinessAddress(
+      val businessAddress = BusinessAddress(
         "1 Acacia Avenue",
         "Hollinswood",
         Some("Telford"),
@@ -314,7 +314,7 @@ class InterimDesRegistrationSpec extends PlaySpec {
         Some("England")
       )
 
-      val desBusinessContactContactDetails = BusinessContactDetails(
+      val businessContactDetails = BusinessContactDetails(
         Some("0121 000 000"),
         Some("0700 000 000"),
         Some("d@ddd.com")
@@ -336,13 +336,13 @@ class InterimDesRegistrationSpec extends PlaySpec {
       val testInterimCorporationTax = InterimCorporationTax(
         "DG Limited",
         returnsOnCT61 = false,
-        Some(desBusinessAddress),
-        desBusinessContactContactDetails,
+        Some(businessAddress),
+        businessContactDetails,
         groups = validGroups
       )
-      val testModel1 = InterimDesRegistration( "ackRef1", testMetadata, testInterimCorporationTax)
+      val testModel1 = InterimApiRegistration( "ackRef1", testMetadata, testInterimCorporationTax)
 
-      val result = Json.toJson[InterimDesRegistration](testModel1)
+      val result = Json.toJson[InterimApiRegistration](testModel1)
       result.getClass mustBe classOf[JsObject]
       result mustBe Json.parse(expectedJson)
     }
@@ -385,7 +385,7 @@ class InterimDesRegistrationSpec extends PlaySpec {
                                      |}""".stripMargin
 
       val testMetadata = Metadata( "session-123", "cred-123", "ENG", Instant.ofEpochSecond(0), Director )
-      val desBusinessAddress = BusinessAddress(
+      val businessAddress = BusinessAddress(
         "1 Acacia Avenue",
         "Hollinswood",
         Some("Telford"),
@@ -394,7 +394,7 @@ class InterimDesRegistrationSpec extends PlaySpec {
         Some("England")
       )
 
-      val desBusinessContactContactDetails = BusinessContactDetails(
+      val businessContactContactDetails = BusinessContactDetails(
         Some("0121 000 000"),
         Some("0700 000 000"),
         Some("d@ddd.com")
@@ -405,13 +405,13 @@ class InterimDesRegistrationSpec extends PlaySpec {
       val testInterimCorporationTax = InterimCorporationTax(
         "DG Limited",
         returnsOnCT61 = false,
-        Some(desBusinessAddress),
-        desBusinessContactContactDetails,
+        Some(businessAddress),
+        businessContactContactDetails,
         groups = validGroups
       )
-      val testModel1 = InterimDesRegistration( "ackRef1", testMetadata, testInterimCorporationTax)
+      val testModel1 = InterimApiRegistration( "ackRef1", testMetadata, testInterimCorporationTax)
 
-      val result = Json.toJson[InterimDesRegistration](testModel1)
+      val result = Json.toJson[InterimApiRegistration](testModel1)
       result.getClass mustBe classOf[JsObject]
       result mustBe Json.parse(expectedJson)
     }
@@ -464,7 +464,7 @@ class InterimDesRegistrationSpec extends PlaySpec {
                                      |}""".stripMargin
 
       val testMetadata = Metadata( "session-123", "cred-123", "ENG", Instant.ofEpochSecond(0), Director )
-      val desBusinessAddress = BusinessAddress(
+      val businessAddress = BusinessAddress(
         "1 Acacia Avenue",
         "Hollinswood",
         Some("Telford"),
@@ -473,7 +473,7 @@ class InterimDesRegistrationSpec extends PlaySpec {
         Some("England")
       )
 
-      val desBusinessContactContactDetails = BusinessContactDetails(
+      val businessContactContactDetails = BusinessContactDetails(
         Some("0121 000 000"),
         Some("0700 000 000"),
         Some("d@ddd.com")
@@ -495,13 +495,13 @@ class InterimDesRegistrationSpec extends PlaySpec {
       val testInterimCorporationTax = InterimCorporationTax(
         "DG Limited",
         returnsOnCT61 = false,
-        Some(desBusinessAddress),
-        desBusinessContactContactDetails,
+        Some(businessAddress),
+        businessContactContactDetails,
         groups = validGroups
       )
-      val testModel1 = InterimDesRegistration( "ackRef1", testMetadata, testInterimCorporationTax)
+      val testModel1 = InterimApiRegistration( "ackRef1", testMetadata, testInterimCorporationTax)
 
-      val result = Json.toJson[InterimDesRegistration](testModel1)
+      val result = Json.toJson[InterimApiRegistration](testModel1)
       result.getClass mustBe classOf[JsObject]
       result mustBe Json.parse(expectedJson)
     }
@@ -576,7 +576,7 @@ class InterimDesRegistrationSpec extends PlaySpec {
                                      |}""".stripMargin
 
       val testMetadata = Metadata( "session-123", "cred-123", "ENG", Instant.ofEpochSecond(0), Director )
-      val desBusinessAddress = BusinessAddress(
+      val businessAddress = BusinessAddress(
         "1 Acacia Avenue",
         "Hollinswood",
         Some("Telford"),
@@ -585,7 +585,7 @@ class InterimDesRegistrationSpec extends PlaySpec {
         Some("England")
       )
 
-      val desBusinessContactContactDetails = BusinessContactDetails(
+      val businessContactContactDetails = BusinessContactDetails(
         Some("0121 000 000"),
         Some("0700 000 000"),
         Some("d@ddd.com")
@@ -629,14 +629,14 @@ class InterimDesRegistrationSpec extends PlaySpec {
       val testInterimCorporationTax = InterimCorporationTax(
         "DG Limited",
         returnsOnCT61 = false,
-        Some(desBusinessAddress),
-        desBusinessContactContactDetails,
+        Some(businessAddress),
+        businessContactContactDetails,
         groups = validGroups,
         takeOver = validTakeover
       )
-      val testModel1 = InterimDesRegistration( "ackRef1", testMetadata, testInterimCorporationTax)
+      val testModel1 = InterimApiRegistration( "ackRef1", testMetadata, testInterimCorporationTax)
 
-      val result = Json.toJson[InterimDesRegistration](testModel1)
+      val result = Json.toJson[InterimApiRegistration](testModel1)
       result.getClass mustBe classOf[JsObject]
       result mustBe Json.parse(expectedJson)
     }
@@ -677,7 +677,7 @@ class InterimDesRegistrationSpec extends PlaySpec {
 
       val testMetadata = Metadata( "session-123", "cred-123", "ENG", Instant.ofEpochSecond(0), Director )
 
-      val desBusinessContactContactDetails = BusinessContactDetails(
+      val businessContactContactDetails = BusinessContactDetails(
         None,
         None,
         Some("d@ddd.com")
@@ -687,12 +687,12 @@ class InterimDesRegistrationSpec extends PlaySpec {
         "DG Limited",
         returnsOnCT61 = false,
         None,
-        desBusinessContactContactDetails
+        businessContactContactDetails
       )
 
-      val testModel1 = InterimDesRegistration( "ackRef1", testMetadata, testInterimCorporationTax)
+      val testModel1 = InterimApiRegistration( "ackRef1", testMetadata, testInterimCorporationTax)
 
-      val result = Json.toJson[InterimDesRegistration](testModel1)
+      val result = Json.toJson[InterimApiRegistration](testModel1)
       result.getClass mustBe classOf[JsObject]
       result mustBe Json.parse(expectedJson)
     }
@@ -724,7 +724,7 @@ class InterimDesRegistrationSpec extends PlaySpec {
                                      |}""".stripMargin
 
       val testMetadata = Metadata( "session-123", "cred-123", "ENG", Instant.ofEpochSecond(0), Director )
-      val desBusinessContactContactDetails = BusinessContactDetails(
+      val businessContactContactDetails = BusinessContactDetails(
                 None,
                 None,
                 Some("d@ddd.com")
@@ -734,12 +734,12 @@ class InterimDesRegistrationSpec extends PlaySpec {
                 "ß Ǭscar ég ànt",
                 returnsOnCT61 = false,
                 None,
-                desBusinessContactContactDetails
+                businessContactContactDetails
                 )
       
-              val testModel1 = InterimDesRegistration( "ackRef1", testMetadata, testInterimCorporationTax)
+              val testModel1 = InterimApiRegistration( "ackRef1", testMetadata, testInterimCorporationTax)
       
-              val result = Json.toJson[InterimDesRegistration](testModel1)
+              val result = Json.toJson[InterimApiRegistration](testModel1)
             result.getClass mustBe classOf[JsObject]
             result mustBe Json.parse(expectedJson)
           }
@@ -774,7 +774,7 @@ class InterimDesRegistrationSpec extends PlaySpec {
       
             val testMetadata = Metadata( "session-123", "cred-123", "ENG", Instant.ofEpochSecond(0), Director )
 
-            val desBusinessContactContactDetails = BusinessContactDetails(
+            val businessContactContactDetails = BusinessContactDetails(
                 None,
                 None,
                 Some("d@ddd.com")
@@ -784,12 +784,12 @@ class InterimDesRegistrationSpec extends PlaySpec {
                 "[Test Company]»",
                 returnsOnCT61 = false,
                 None,
-                desBusinessContactContactDetails
+                businessContactContactDetails
                 )
       
-              val testModel1 = InterimDesRegistration( "ackRef1", testMetadata, testInterimCorporationTax)
+              val testModel1 = InterimApiRegistration( "ackRef1", testMetadata, testInterimCorporationTax)
       
-              val result = Json.toJson[InterimDesRegistration](testModel1)
+              val result = Json.toJson[InterimApiRegistration](testModel1)
             result.getClass mustBe classOf[JsObject]
             result mustBe Json.parse(expectedJson)
           }

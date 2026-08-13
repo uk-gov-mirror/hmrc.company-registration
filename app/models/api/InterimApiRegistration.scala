@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package models.des
+package models.api
 
 import models.validation.APIValidation
 import models.{Groups, TakeoverDetails}
@@ -25,7 +25,7 @@ import play.api.libs.json._
 import java.time.Instant
 import java.time.format.{DateTimeFormatter, DateTimeFormatterBuilder}
 
-object DesFormats {
+object ApiFormats {
 
   private val datetime: DateTimeFormatter = new DateTimeFormatterBuilder().appendInstant(3).toFormatter
 
@@ -158,7 +158,7 @@ case class Metadata(sessionId: String,
 
 object Metadata {
 
-  import DesFormats._
+  import ApiFormats._
 
   implicit val writes: Writes[Metadata] = (metadata: Metadata) => {
     Json.obj(
@@ -239,14 +239,14 @@ object InterimCorporationTax {
 
 }
 
-case class InterimDesRegistration(ackRef: String,
+case class InterimApiRegistration(ackRef: String,
                                   metadata: Metadata,
                                   interimCorporationTax: InterimCorporationTax)
 
-object InterimDesRegistration {
-  implicit val writes: Writes[InterimDesRegistration] = (
+object InterimApiRegistration {
+  implicit val writes: Writes[InterimApiRegistration] = (
     (__ \ "acknowledgementReference").write[String] and
       (__ \ "registration" \ "metadata").write[Metadata] and
       (__ \ "registration" \ "corporationTax").write[InterimCorporationTax]
-    ) (unlift(InterimDesRegistration.unapply))
+    ) (unlift(InterimApiRegistration.unapply))
 }

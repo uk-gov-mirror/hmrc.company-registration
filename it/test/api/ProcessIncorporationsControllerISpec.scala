@@ -14,12 +14,11 @@
  * limitations under the License.
  */
 
-package test.api
+package api
 
 import com.github.tomakehurst.wiremock.client.WireMock._
-import com.github.tomakehurst.wiremock.stubbing.StubMapping
 import com.github.tomakehurst.wiremock.verification.LoggedRequest
-import config.LangConstants
+import config.{LangConstants, MicroserviceAppConfig}
 import models.RegistrationStatus.{DRAFT, HELD, LOCKED}
 import models._
 import org.mongodb.scala.result.InsertOneResult
@@ -41,6 +40,8 @@ import scala.concurrent.Future
 
 class ProcessIncorporationsControllerISpec extends IntegrationSpecBase with MongoIntegrationSpec with LoginStub {
   lazy val defaultCookieSigner: DefaultCookieSigner = app.injector.instanceOf[DefaultCookieSigner]
+  lazy val appConfig = app.injector.instanceOf[MicroserviceAppConfig]
+
   val mockHost: String = WiremockHelper.wiremockHost
   val mockPort: Int = WiremockHelper.wiremockPort
   val mockUrl = s"http://$mockHost:$mockPort"
@@ -62,11 +63,14 @@ class ProcessIncorporationsControllerISpec extends IntegrationSpecBase with Mong
     "microservice.services.des-service.authorization-token" -> "testAuthToken",
     "microservice.services.des-topup-service.host" -> mockHost,
     "microservice.services.des-topup-service.port" -> mockPort,
+    "microservice.services.hip.host" -> s"$mockHost",
+    "microservice.services.hip.port" -> s"$mockPort",
     "microservice.services.doNotIndendToTradeDefaultDate" -> "MTkwMC0wMS0wMQ==",
     "microservice.services.incorporation-information.host" -> s"$mockHost",
     "microservice.services.incorporation-information.port" -> s"$mockPort",
     "microservice.services.business-registration.host" -> s"$mockHost",
     "microservice.services.business-registration.port" -> s"$mockPort"
+
   )
 
   override implicit lazy val app: Application = new GuiceApplicationBuilder()
@@ -234,18 +238,20 @@ class ProcessIncorporationsControllerISpec extends IntegrationSpecBase with Mong
        |}
        """.stripMargin).as[JsObject]
 
-  def stubDesPost(status: Int, submission: String): StubMapping = stubPost("/business-registration/corporation-tax", status, submission)
+  val ctSubmissionUrl: String =
+    if (appConfig.useHip) "/etmp/RESTAdapter/business-registration/CT" else "/business-registration/corporation-tax"
 
-  def stubEmailPost(status: Int): StubMapping = stubPost("/hmrc/email", status, "")
+  val topUpCtSubmissionUrl: String =
+    if (appConfig.useHip) "/etmp/RESTAdapter/business-incorporation/CT" else "/business-incorporation/corporation-tax"
 
-  def stubDesTopUpPost(status: Int, submission: String): StubMapping = stubPost("/business-incorporation/corporation-tax", status, submission)
+  val emailUrl = "/hmrc/email"
 
   "Process Incorporation" must {
 
     val processIncorpPath = "/process-incorp"
     val testIncorpDate = "2017-07-24"
 
-    "send a top up submission to DES with correct active date" when {
+    "send a top up submission to API with correct active date" when {
       "user has selected a Future Date for Accounting Dates before the incorporation date" in new Setup {
 
         ctRepository.insert(heldRegistration)
@@ -253,12 +259,12 @@ class ProcessIncorporationsControllerISpec extends IntegrationSpecBase with Mong
         setupSimpleAuthMocks()
         stubPost("/hmrc/email", 202, "")
         val ctSubmission: String = heldJson.deepMerge(jsonAppendDataForSubmission(testIncorpDate)).toString
-        stubPost("/business-incorporation/corporation-tax", 200, ctSubmission)
+        stubPost(topUpCtSubmissionUrl, 200, ctSubmission)
 
         val response: WSResponse = await(client(processIncorpPath).post(jsonIncorpStatus(testIncorpDate)))
         response.status mustBe 200
 
-        val crPosts: util.List[LoggedRequest] = findAll(postRequestedFor(urlMatching(s"/business-incorporation/corporation-tax")))
+        val crPosts: util.List[LoggedRequest] = findAll(postRequestedFor(urlMatching(topUpCtSubmissionUrl)))
         val captor: LoggedRequest = crPosts.get(0)
         val json: JsValue = Json.parse(captor.getBodyAsString)
         (json \ "corporationTax" \ "companyActiveDate").as[String] mustBe testIncorpDate
@@ -272,12 +278,12 @@ class ProcessIncorporationsControllerISpec extends IntegrationSpecBase with Mong
         setupSimpleAuthMocks()
         stubPost("/hmrc/email", 202, "")
         val ctSubmission: String = heldJson.deepMerge(jsonAppendDataForSubmission(activeDate)).toString
-        stubPost("/business-incorporation/corporation-tax", 200, ctSubmission)
+        stubPost(topUpCtSubmissionUrl, 200, ctSubmission)
 
         val response: WSResponse = await(client(processIncorpPath).post(jsonIncorpStatus(testIncorpDate)))
         response.status mustBe 200
 
-        val crPosts: util.List[LoggedRequest] = findAll(postRequestedFor(urlMatching(s"/business-incorporation/corporation-tax")))
+        val crPosts: util.List[LoggedRequest] = findAll(postRequestedFor(urlMatching(topUpCtSubmissionUrl)))
         val captor: LoggedRequest = crPosts.get(0)
         val json: JsValue = Json.parse(captor.getBodyAsString)
         (json \ "corporationTax" \ "companyActiveDate").as[String] mustBe activeDate
@@ -297,12 +303,12 @@ class ProcessIncorporationsControllerISpec extends IntegrationSpecBase with Mong
         setupSimpleAuthMocks()
         stubPost("/hmrc/email", 202, "")
         val ctSubmission: String = heldJson.deepMerge(jsonAppendDataForSubmission(testIncorpDate)).toString
-        stubPost("/business-incorporation/corporation-tax", 200, ctSubmission)
+        stubPost(topUpCtSubmissionUrl, 200, ctSubmission)
 
         val response: WSResponse = await(client(processIncorpPath).post(jsonIncorpStatus(testIncorpDate)))
         response.status mustBe 200
 
-        val crPosts: util.List[LoggedRequest] = findAll(postRequestedFor(urlMatching(s"/business-incorporation/corporation-tax")))
+        val crPosts: util.List[LoggedRequest] = findAll(postRequestedFor(urlMatching(topUpCtSubmissionUrl)))
         val captor: LoggedRequest = crPosts.get(0)
         val json: JsValue = Json.parse(captor.getBodyAsString)
         (json \ "corporationTax" \ "companyActiveDate").as[String] mustBe testIncorpDate
@@ -313,7 +319,7 @@ class ProcessIncorporationsControllerISpec extends IntegrationSpecBase with Mong
         import AccountingDetails.NOT_PLANNING_TO_YET
 
         val testIncorpDate = "2017-07-25"
-        val activeDateToDES = "1900-01-01"
+        val activeDateToApi = "1900-01-01"
         val heldRegistration2: CorporationTaxRegistration = heldRegistration.copy(
           accountingDetails = Some(heldRegistration.accountingDetails.get.copy(status = NOT_PLANNING_TO_YET, activeDate = None))
         )
@@ -323,15 +329,15 @@ class ProcessIncorporationsControllerISpec extends IntegrationSpecBase with Mong
         setupSimpleAuthMocks()
         stubPost("/hmrc/email", 202, "")
         val ctSubmission: String = heldJson.deepMerge(jsonAppendDataForSubmission(testIncorpDate)).toString
-        stubPost("/business-incorporation/corporation-tax", 200, ctSubmission)
+        stubPost(topUpCtSubmissionUrl, 200, ctSubmission)
 
         val response: WSResponse = await(client(processIncorpPath).post(jsonIncorpStatus(testIncorpDate)))
         response.status mustBe 200
 
-        val crPosts: util.List[LoggedRequest] = findAll(postRequestedFor(urlMatching(s"/business-incorporation/corporation-tax")))
+        val crPosts: util.List[LoggedRequest] = findAll(postRequestedFor(urlMatching(topUpCtSubmissionUrl)))
         val captor: LoggedRequest = crPosts.get(0)
         val json: JsValue = Json.parse(captor.getBodyAsString)
-        (json \ "corporationTax" \ "companyActiveDate").as[String] mustBe activeDateToDES
+        (json \ "corporationTax" \ "companyActiveDate").as[String] mustBe activeDateToApi
       }
     }
 
@@ -342,7 +348,7 @@ class ProcessIncorporationsControllerISpec extends IntegrationSpecBase with Mong
 
         setupSimpleAuthMocks()
         stubPost("/hmrc/email", 202, "")
-        stubPost("/business-incorporation/corporation-tax", 400, "")
+        stubPost(topUpCtSubmissionUrl, 400, "")
 
         val response: WSResponse = await(client(processIncorpPath).post(jsonIncorpStatus(testIncorpDate)))
         response.status mustBe 400
@@ -352,7 +358,7 @@ class ProcessIncorporationsControllerISpec extends IntegrationSpecBase with Mong
 
         setupSimpleAuthMocks()
         stubPost("/hmrc/email", 202, "")
-        stubPost("/business-incorporation/corporation-tax", 409, "{}")
+        stubPost(topUpCtSubmissionUrl, 409, "{}")
 
         val response: WSResponse = await(client(processIncorpPath).post(jsonIncorpStatus(testIncorpDate)))
         response.status mustBe 200
@@ -362,7 +368,7 @@ class ProcessIncorporationsControllerISpec extends IntegrationSpecBase with Mong
 
         setupSimpleAuthMocks()
         stubPost("/hmrc/email", 202, "")
-        stubPost(url = "/business-incorporation/corporation-tax", status = 429, responseBody = "{}")
+        stubPost(url = topUpCtSubmissionUrl, status = 429, responseBody = "{}")
 
         val response: WSResponse = await(client(processIncorpPath).post(jsonIncorpStatus(testIncorpDate)))
         response.status mustBe 503
@@ -372,7 +378,7 @@ class ProcessIncorporationsControllerISpec extends IntegrationSpecBase with Mong
 
         setupSimpleAuthMocks()
         stubPost("/hmrc/email", 202, "")
-        stubPost(url = "/business-incorporation/corporation-tax", status = 499, responseBody = "{}")
+        stubPost(url = topUpCtSubmissionUrl, status = 499, responseBody = "{}")
 
         val response: WSResponse = await(client(processIncorpPath).post(jsonIncorpStatus(testIncorpDate)))
         response.status mustBe 502
@@ -382,7 +388,7 @@ class ProcessIncorporationsControllerISpec extends IntegrationSpecBase with Mong
 
         setupSimpleAuthMocks()
         stubPost("/hmrc/email", 202, "")
-        stubPost(url = "/business-incorporation/corporation-tax", status = 501, responseBody = "{}")
+        stubPost(url = topUpCtSubmissionUrl, status = 501, responseBody = "{}")
 
         val response: WSResponse = await(client(processIncorpPath).post(jsonIncorpStatus(testIncorpDate)))
         response.status mustBe 502
@@ -407,7 +413,8 @@ class ProcessIncorporationsControllerISpec extends IntegrationSpecBase with Mong
         stubPost("/hmrc/email", 202, "")
 
         stubGet(s"/business-registration/admin/business-tax-registration/$regId", 200, businessRegistrationResponse)
-        stubPost(s"/business-registration/corporation-tax", 200, """{"a": "b"}""")
+        stubPost(ctSubmissionUrl, 200, """{"a": "b"}""")
+
         stubFor(post(urlEqualTo("/incorporation-information/subscribe/trans-id-2345/regime/ctax/subscriber/SCRS?force=true"))
           .willReturn(
             aResponse().
@@ -442,7 +449,8 @@ class ProcessIncorporationsControllerISpec extends IntegrationSpecBase with Mong
         stubPost("/hmrc/email", 202, "")
 
         stubGet(s"/business-registration/admin/business-tax-registration/$regId", 200, businessRegistrationResponse)
-        stubPost(s"/business-registration/corporation-tax", 400, """{"a": "b"}""")
+        stubPost(ctSubmissionUrl, 400, """{"a": "b"}""")
+
         stubFor(post(urlEqualTo("/incorporation-information/subscribe/trans-id-2345/regime/ctax/subscriber/SCRS?force=true"))
           .willReturn(
             aResponse().
@@ -504,7 +512,8 @@ class ProcessIncorporationsControllerISpec extends IntegrationSpecBase with Mong
         stubPost("/hmrc/email", 202, "")
 
         stubGet(s"/business-registration/admin/business-tax-registration/$regId", 200, businessRegistrationResponse)
-        stubPost(s"/business-registration/corporation-tax", 200, """{"a": "b"}""")
+        stubPost(ctSubmissionUrl, 200, """{"a": "b"}""")
+
         stubFor(post(urlEqualTo("/incorporation-information/subscribe/trans-id-2345/regime/ctax/subscriber/SCRS?force=true"))
           .willReturn(
             aResponse().
@@ -539,7 +548,8 @@ class ProcessIncorporationsControllerISpec extends IntegrationSpecBase with Mong
         stubPost("/hmrc/email", 202, "")
 
         stubGet(s"/business-registration/admin/business-tax-registration/$regId", 200, businessRegistrationResponse)
-        stubPost(s"/business-registration/corporation-tax", 400, """{"a": "b"}""")
+        stubPost(ctSubmissionUrl, 400, """{"a": "b"}""")
+
         stubFor(post(urlEqualTo("/incorporation-information/subscribe/trans-id-2345/regime/ctax/subscriber/SCRS?force=true"))
           .willReturn(
             aResponse().
@@ -561,8 +571,8 @@ class ProcessIncorporationsControllerISpec extends IntegrationSpecBase with Mong
         setupSimpleAuthMocks()
         setupCTRegistration(heldRegistration)
 
-        stubDesTopUpPost(200, """{"test":"json"}""")
-        stubEmailPost(202)
+        stubPost(topUpCtSubmissionUrl,200, """{"test":"json"}""")
+        stubPost(emailUrl, 202, "")
 
         val response: Future[WSResponse] = client(processIncorpPath).post(jsonIncorpStatusRejected)
 
@@ -601,8 +611,8 @@ class ProcessIncorporationsControllerISpec extends IntegrationSpecBase with Mong
         setupSimpleAuthMocks()
         setupCTRegistration(heldRegistration.copy(status = "LOCKED", confirmationReferences = Some(confRefsWithoutPayment)))
 
-        stubDesTopUpPost(200, """{"test":"json"}""")
-        stubEmailPost(202)
+        stubPost(topUpCtSubmissionUrl,200, """{"test":"json"}""")
+        stubPost(emailUrl, 202, "")
 
         val response: Future[WSResponse] = client(processIncorpPath).post(jsonIncorpStatusRejected)
 
@@ -622,15 +632,15 @@ class ProcessIncorporationsControllerISpec extends IntegrationSpecBase with Mong
       }
     }
 
-    "send a top-up submission to DES if a matching held registration exists and a held submission does not exist" in new Setup {
+    "send a top-up submission to API if a matching held registration exists and a held submission does not exist" in new Setup {
 
       val jsonBodyFromII: String = jsonIncorpStatus(testIncorpDate)
 
       setupSimpleAuthMocks()
       setupCTRegistration(heldRegistration)
 
-      stubDesTopUpPost(200, """{"test":"json"}""")
-      stubEmailPost(202)
+      stubPost(topUpCtSubmissionUrl,200, """{"test":"json"}""")
+      stubPost(emailUrl, 202, "")
 
       val response: Future[WSResponse] = client(processIncorpPath).post(jsonBodyFromII)
 
@@ -641,29 +651,29 @@ class ProcessIncorporationsControllerISpec extends IntegrationSpecBase with Mong
       reg.status mustBe "submitted"
     }
 
-    "NOT send a top-up submission to DES if a matching registration exists as not held status" in new Setup {
+    "NOT send a top-up submission to API if a matching registration exists as not held status" in new Setup {
 
       val jsonBodyFromII: String = jsonIncorpStatus(testIncorpDate)
 
       setupSimpleAuthMocks()
       setupCTRegistration(heldRegistration.copy(status = DRAFT))
 
-      stubEmailPost(202)
+      stubPost(emailUrl, 202, "")
       stubPost("/write/audit", 200, """{"x":2}""")
 
       val response: Future[WSResponse] = client(processIncorpPath).post(jsonBodyFromII)
       await(response).status mustBe 500
     }
 
-    "return a 502 if the top-up submission to DES fails, then return a 200 when retried and the submission to DES is successful" in new Setup {
+    "return a 502 if the top-up submission to API fails, then return a 200 when retried and the submission to API is successful" in new Setup {
 
       val jsonBodyFromII: String = jsonIncorpStatus(testIncorpDate)
 
       setupSimpleAuthMocks()
       setupCTRegistration(heldRegistration)
 
-      stubDesTopUpPost(502, """{"test":"json for 502"}""")
-      stubEmailPost(202)
+      stubPost(topUpCtSubmissionUrl, 502, """{"test":"json for 502"}""")
+      stubPost(emailUrl, 202, "")
 
       val response1: Future[WSResponse] = client(processIncorpPath).post(jsonBodyFromII)
 
@@ -672,7 +682,7 @@ class ProcessIncorporationsControllerISpec extends IntegrationSpecBase with Mong
       val reg1 :: _ = ctRepository.findAll
       reg1.status mustBe "held"
 
-      stubDesTopUpPost(200, """{"test":"json for 200"}""")
+      stubPost(topUpCtSubmissionUrl, 200, """{"test":"json for 200"}""")
 
       val response2: Future[WSResponse] = client(processIncorpPath).post(jsonBodyFromII)
 

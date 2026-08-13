@@ -20,7 +20,7 @@ import auth.CryptoSCRS
 import fixtures.{CorporationTaxRegistrationFixture, CorporationTaxRegistrationResponse}
 import helpers.BaseSpec
 import mocks.{AuthorisationMocks, MockMetricsService}
-import models.des.BusinessAddress
+import models.api.BusinessAddress
 import models.validation.MongoValidation
 import models.{CHROAddress, ConfirmationReferences, CorporationTaxRegistration, PPOBAddress}
 import org.mockito.ArgumentMatchers.{any, eq => eqTo}

@@ -16,6 +16,7 @@
 
 package controllers
 
+import config.MicroserviceAppConfig
 import models.IncorpStatus
 import org.apache.pekko.actor.ActorSystem
 import org.apache.pekko.stream.Materializer
@@ -49,11 +50,13 @@ class ProcessIncorporationsControllerSpec extends PlaySpec with MockitoSugar wit
   val mockProcessIncorporationService: ProcessIncorporationService = mock[ProcessIncorporationService]
   val mockCorpRegTaxService: CorporationTaxRegistrationService = mock[CorporationTaxRegistrationService]
   val mockSubmissionService: SubmissionService = mock[SubmissionService]
+  val mockMicroserviceAppConfig: MicroserviceAppConfig = mock[MicroserviceAppConfig]
 
   class Setup {
     object Controller extends ProcessIncorporationsController(mockProcessIncorporationService,
       mockCorpRegTaxService,
       mockSubmissionService,
+      mockMicroserviceAppConfig,
       stubControllerComponents(playBodyParsers = stubPlayBodyParsers(mat))) {
     }
   }
@@ -149,15 +152,18 @@ class ProcessIncorporationsControllerSpec extends PlaySpec with MockitoSugar wit
   }
 
   "Failing Topup" must {
-    "log the correct error message" in new Setup {
-      when(mockProcessIncorporationService.processIncorporationUpdate(any(), any())(any())).thenReturn(Future.failed(new RuntimeException))
+    for (apiRoute <- Seq("DES", "HIP")) {
+      s"log the correct $apiRoute error message" in new Setup {
+        when(mockProcessIncorporationService.processIncorporationUpdate(any(), any())(any())).thenReturn(Future.failed(new RuntimeException))
+        when(mockMicroserviceAppConfig.apiRoute).thenReturn(apiRoute)
 
-      val request: FakeRequest[JsObject] = FakeRequest().withBody[JsObject](rejectedIncorpJson)
-      withCaptureOfLoggingFrom(Controller.logger) { logEvents =>
-        intercept[RuntimeException](await(call(Controller.processIncorporationNotification, request)))
-        eventually {
-          logEvents.size mustBe 1
-          logEvents.head.getMessage mustBe "[Controller][processIncorporationNotification] FAILED_DES_TOPUP - Topup failed for transaction ID: trans-12345"
+        val request: FakeRequest[JsObject] = FakeRequest().withBody[JsObject](rejectedIncorpJson)
+        withCaptureOfLoggingFrom(Controller.logger) { logEvents =>
+          intercept[RuntimeException](await(call(Controller.processIncorporationNotification, request)))
+          eventually {
+            logEvents.size mustBe 1
+            logEvents.head.getMessage mustBe s"[Controller][processIncorporationNotification] FAILED_${apiRoute}_TOPUP - Topup failed for transaction ID: trans-12345"
+          }
         }
       }
     }

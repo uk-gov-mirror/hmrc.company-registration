@@ -1,5 +1,5 @@
 /*
- * Copyright 2024 HM Revenue & Customs
+ * Copyright 2026 HM Revenue & Customs
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,7 +16,7 @@
 
 package audit
 
-import models.des.{BusinessAddress, BusinessContactDetails}
+import models.api.{BusinessAddress, BusinessContactDetails}
 import play.api.libs.json._
 
 case class SubmissionEventDetail(regId: String,
@@ -35,10 +35,6 @@ object SubmissionEventDetail {
     def businessAddressAuditWrites(address: BusinessAddress) = BusinessAddress.auditWrites(detail.transId, detail.addressEventType, detail.uprn, address)
 
     def businessContactAuditWrites(contact: BusinessContactDetails) = BusinessContactDetails.auditWrites(contact)
-
-    def desSubmissionState: JsObject = {
-      Json.obj("desSubmissionState" -> "partial")
-    }
 
     val address = (detail.jsSubmission \ "registration" \ "corporationTax" \ "businessAddress").
       asOpt[BusinessAddress].fold {
@@ -70,6 +66,6 @@ object SubmissionEventDetail {
       CORP_TAX -> corporationTax.++
       (address).++
       (contactDetails)
-    ) ++ desSubmissionState
+    ) ++ Json.obj("desSubmissionState" -> "partial")
   }
 }

@@ -19,7 +19,7 @@ package config
 import auth.{CryptoSCRS, CryptoSCRSImpl}
 import com.google.inject.AbstractModule
 import com.google.inject.name.Names
-import connectors.{BusinessRegistrationConnector, BusinessRegistrationConnectorImpl, DesConnector, DesConnectorImpl, IncorporationCheckAPIConnector, IncorporationCheckAPIConnectorImpl, IncorporationInformationConnector, IncorporationInformationConnectorImpl, SendEmailConnector, SendEmailConnectorImpl}
+import connectors._
 import controllers.test.{TestEndpointController, TestEndpointControllerImpl}
 import jobs.{MissingIncorporationJob, RemoveStaleDocumentsJob, ScheduledJob}
 import repositories.{CorporationTaxRegistrationMongoRepository, Repositories, SequenceMongoRepository, ThrottleMongoRepository}
@@ -69,15 +69,12 @@ class Module extends AbstractModule {
     bind(classOf[UserAccessService]).to(classOf[UserAccessServiceImpl]).asEagerSingleton()
     bind(classOf[ProcessIncorporationService]).to(classOf[ProcessIncorporationServiceImpl]).asEagerSingleton()
     bind(classOf[SubmissionService]).to(classOf[SubmissionServiceImpl]).asEagerSingleton()
-
   }
 
   private def bindConnectors(): Unit = {
     bind(classOf[IncorporationInformationConnector]).to(classOf[IncorporationInformationConnectorImpl]).asEagerSingleton()
     bind(classOf[BusinessRegistrationConnector]).to(classOf[BusinessRegistrationConnectorImpl]).asEagerSingleton()
-    bind(classOf[DesConnector]).to(classOf[DesConnectorImpl]).asEagerSingleton()
     bind(classOf[SendEmailConnector]).to(classOf[SendEmailConnectorImpl]).asEagerSingleton()
-    bind(classOf[DesConnector]).to(classOf[DesConnectorImpl]).asEagerSingleton()
     bind(classOf[IncorporationCheckAPIConnector]).to(classOf[IncorporationCheckAPIConnectorImpl]).asEagerSingleton()
   }
 

@@ -18,11 +18,11 @@ package services
 
 import audit.SubmissionEventDetail
 import cats.implicits._
-import connectors.{BusinessRegistrationConnector, BusinessRegistrationSuccessResponse, DesConnector, IncorporationInformationConnector}
+import connectors.{BusinessRegistrationConnector, BusinessRegistrationSuccessResponse, IncorporationInformationConnector}
 import helpers.DateHelper
 import models.RegistrationStatus.{ACKNOWLEDGED, DRAFT, LOCKED, SUBMITTED}
 import models._
-import models.des._
+import models.api._
 import models.validation.APIValidation
 import play.api.libs.json.{JsObject, JsString, Json}
 import play.api.mvc.{AnyContent, Request}
@@ -37,7 +37,7 @@ import scala.concurrent.{ExecutionContext, Future}
 
 class SubmissionServiceImpl @Inject()(val repositories: Repositories,
                                       val incorpInfoConnector: IncorporationInformationConnector,
-                                      val desConnector: DesConnector,
+                                      val submissionEventService: SubmissionEventService,
                                       val brConnector: BusinessRegistrationConnector,
                                       val corpTaxRegService: CorporationTaxRegistrationService,
                                       val auditService: AuditService
@@ -54,7 +54,7 @@ trait SubmissionService extends DateHelper with Logging {
   val cTRegistrationRepository: CorporationTaxRegistrationMongoRepository
   val sequenceRepository: SequenceMongoRepository
   val incorpInfoConnector: IncorporationInformationConnector
-  val desConnector: DesConnector
+  val submissionEventService: SubmissionEventService
   val auditService: AuditService
   val brConnector: BusinessRegistrationConnector
   val corpTaxRegService: CorporationTaxRegistrationService
@@ -103,10 +103,10 @@ trait SubmissionService extends DateHelper with Logging {
     }
   }
 
-  def updateCTRecordWithAckRefs(ackRef: String, etmpNotification: AcknowledgementReferences): Future[Option[CorporationTaxRegistration]] = {
+  def updateCTRecordWithAckRefs(ackRef: String, apiNotification: AcknowledgementReferences): Future[Option[CorporationTaxRegistration]] = {
     cTRegistrationRepository.findOneBySelector(cTRegistrationRepository.ackRefSelector(ackRef)) flatMap {
       case Some(record) =>
-        cTRegistrationRepository.updateCTRecordWithAcknowledgments(ackRef, record.copy(acknowledgementReferences = Some(etmpNotification), status = RegistrationStatus.ACKNOWLEDGED)) map {
+        cTRegistrationRepository.updateCTRecordWithAcknowledgments(ackRef, record.copy(acknowledgementReferences = Some(apiNotification), status = RegistrationStatus.ACKNOWLEDGED)) map {
           _ => Some(record)
         }
       case None =>
@@ -148,31 +148,31 @@ trait SubmissionService extends DateHelper with Logging {
                                                 (implicit hc: HeaderCarrier, req: Request[AnyContent]): Future[Boolean] = {
     for {
       brMetadata <- retrieveBRMetadata(regId, isAdmin)
-      partialSubmission = buildPartialDesSubmission(regId, confRefs.acknowledgementReference, authProvId, brMetadata, doc)
+      partialSubmission = buildPartialApiSubmission(regId, confRefs.acknowledgementReference, authProvId, brMetadata, doc)
       partialSubmissionAsJson = Json.toJson(partialSubmission).as[JsObject]
       _ <- incorpInfoConnector.registerInterest(regId, confRefs.transactionId)
-      _ <- submitPartialToDES(regId, confRefs.acknowledgementReference, partialSubmissionAsJson, authProvId)
+      _ <- submitPartialToApi(regId, confRefs.acknowledgementReference, partialSubmissionAsJson, authProvId)
       _ = auditUserPartialSubmission(regId, authProvId, partialSubmissionAsJson, doc)
       success <- cTRegistrationRepository.updateRegistrationToHeld(regId, confRefs) map (_.isDefined)
     } yield success
   }
 
 
-  private[services] def buildPartialDesSubmission(regId: String, ackRef: String, authProvId: String, brMetadata: BusinessRegistration, ctData: CorporationTaxRegistration)
-                                                 (implicit hc: HeaderCarrier): InterimDesRegistration = {
+  private[services] def buildPartialApiSubmission(regId: String, ackRef: String, authProvId: String, brMetadata: BusinessRegistration, ctData: CorporationTaxRegistration)
+                                                 (implicit hc: HeaderCarrier): InterimApiRegistration = {
     val (sessionID, credID): (String, String) = hc.sessionId match {
       case Some(sesID) => (sesID.value, authProvId)
       case None => ctData.sessionIdentifiers match {
         case Some(sessionIdentifiers) => (sessionIdentifiers.sessionId, sessionIdentifiers.credId)
-        case None => throw new RuntimeException(s"[buildPartialDesSubmission] No session identifiers available for DES submission")
+        case None => throw new RuntimeException(s"[buildPartialApiSubmission] No session identifiers available for API submission")
       }
     }
 
-    val companyDetails = ctData.companyDetails.getOrElse(throw new RuntimeException("[buildPartialDesSubmission] no company details found in ct doc when building partial des submission"))
-    val contactDetails = ctData.contactDetails.getOrElse(throw new RuntimeException("[buildPartialDesSubmission] no contact details found in ct doc when building partial des submission"))
-    val tradingDetails = ctData.tradingDetails.getOrElse(throw new RuntimeException("[buildPartialDesSubmission] no trading details found in ct doc when building partial des submission"))
+    val companyDetails = ctData.companyDetails.getOrElse(throw new RuntimeException("[buildPartialApiSubmission] no company details found in ct doc when building partial Api submission"))
+    val contactDetails = ctData.contactDetails.getOrElse(throw new RuntimeException("[buildPartialApiSubmission] no contact details found in ct doc when building partial Api submission"))
+    val tradingDetails = ctData.tradingDetails.getOrElse(throw new RuntimeException("[buildPartialApiSubmission] no trading details found in ct doc when building partial Api submission"))
     val completionCapacity = CompletionCapacity(
-      brMetadata.completionCapacity.getOrElse(throw new RuntimeException("[buildPartialDesSubmission] no completion Capacity found in br when building partial des submission"))
+      brMetadata.completionCapacity.getOrElse(throw new RuntimeException("[buildPartialApiSubmission] no completion Capacity found in br when building partial Api submission"))
     )
 
     val optPPOBAddress: Option[PPOBAddress] = companyDetails.ppob match {
@@ -209,7 +209,7 @@ trait SubmissionService extends DateHelper with Logging {
           ))
           val utr = og.groupUTR.getOrElse(throw new RuntimeException(s"formatGroupsForSubmission groups exists but utr block does not: $regId"))
           val nameFormatted = APIValidation.parentGroupNameValidator.reads(JsString(nameOfComp.name))
-            .getOrElse(throw new RuntimeException(s"Parent group name saved does not pass des validation: $regId"))
+            .getOrElse(throw new RuntimeException(s"Parent group name saved does not pass Api validation: $regId"))
           Groups(
             og.groupRelief,
             Some(nameOfComp.copy(name = nameFormatted)),
@@ -220,7 +220,7 @@ trait SubmissionService extends DateHelper with Logging {
 
     val businessContactDetails = BusinessContactDetails(contactDetails.phone, contactDetails.mobile, contactDetails.email)
 
-    InterimDesRegistration(
+    InterimApiRegistration(
       ackRef = ackRef,
       metadata = Metadata(
         sessionId = sessionID,
@@ -240,9 +240,9 @@ trait SubmissionService extends DateHelper with Logging {
     )
   }
 
-  private[services] def submitPartialToDES(regId: String, ackRef: String, partialSubmission: JsObject, authProvId: String)
+  private[services] def submitPartialToApi(regId: String, ackRef: String, partialSubmission: JsObject, authProvId: String)
                                           (implicit hc: HeaderCarrier): Future[HttpResponse] = {
-    desConnector.ctSubmission(ackRef, partialSubmission, regId) recoverWith {
+    submissionEventService.ctSubmission(ackRef, partialSubmission, regId) recoverWith {
       case e =>
         hc.sessionId match {
           case Some(xSesID) =>
@@ -259,7 +259,7 @@ trait SubmissionService extends DateHelper with Logging {
                                                   (implicit hc: HeaderCarrier, req: Request[AnyContent]): Future[AuditResult] = {
     import PPOB.RO
 
-    val ppob = doc.companyDetails.getOrElse(throw new RuntimeException(s"Could not retrieve Company Registration after DES Submission for $regId")).ppob
+    val ppob = doc.companyDetails.getOrElse(throw new RuntimeException(s"Could not retrieve Company Registration after API Submission for $regId")).ppob
     val (txID, uprn) = (ppob.addressType, ppob.address) match {
       case (RO, _) => (None, None)
       case (_, Some(address)) => (Some(address.txid), address.uprn)

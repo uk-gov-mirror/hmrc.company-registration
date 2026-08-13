@@ -21,9 +21,9 @@ import helpers.BaseSpec
 import play.api.http.Status._
 import play.api.libs.json.Json
 import uk.gov.hmrc.http.{HttpResponse, NotFoundException}
-import utils.LogCapturingHelper
+import utils.{AlertLogging, LogCapturingHelper}
 
-class IncorporationInformationHttpParsersSpec extends BaseSpec with LogCapturingHelper {
+class IncorporationInformationHttpParsersSpec extends BaseSpec with LogCapturingHelper with AlertLogging {
 
   val regId = "reg1234"
   val txId = "tx1234"
@@ -70,7 +70,6 @@ class IncorporationInformationHttpParsersSpec extends BaseSpec with LogCapturing
 
           withCaptureOfLoggingFrom(IncorporationInformationHttpParsers.logger) { logs =>
             rds.read("", "", HttpResponse(OK, "")) mustBe true
-
             logs.containsMsg(Level.INFO, s"[IncorporationInformationHttpParsers][cancelSubscriptionHttpParser] Cancelled subscription for regId: '$regId' and txId: '$txId'")
           }
         }
@@ -112,7 +111,9 @@ class IncorporationInformationHttpParsersSpec extends BaseSpec with LogCapturing
 
           withCaptureOfLoggingFrom(IncorporationInformationHttpParsers.logger) { logs =>
             rds.read("", "", HttpResponse(OK, json = Json.obj("crn" -> crn), Map())) mustBe Some(crn)
-            logs.containsMsg(Level.ERROR, s"[IncorporationInformationHttpParsers] STALE_DOCUMENTS_DELETE_WARNING_CRN_FOUND")
+
+            val logLevel = if (inWorkingHours) Level.ERROR else Level.INFO
+            logs.containsMsg(logLevel, s"[IncorporationInformationHttpParsers] STALE_DOCUMENTS_DELETE_WARNING_CRN_FOUND")
           }
         }
       }
