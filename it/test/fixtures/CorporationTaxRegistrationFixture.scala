@@ -31,6 +31,7 @@ object CorporationTaxRegistrationFixture {
 
   def ctRegistrationJson(regId: String = UUID.randomUUID().toString,
                          status: String = "draft",
+                         createdTime: Long = 1504532988261L,
                          lastSignedIn: Long = 1515151515151L,
                          malform: Option[JsObject] = None): JsObject = Json.parse(
     s"""
@@ -83,7 +84,7 @@ object CorporationTaxRegistrationFixture {
        |   "contactMobileNumber":"0123456789",
        |   "contactEmail":"test@email.co.uk"
        | },
-       | "createdTime":1504532988261,
+       | "createdTime":$createdTime,
        | "lastSignedIn":$lastSignedIn
        |}
     """.stripMargin).as[JsObject].deepMerge(malform.getOrElse(Json.obj()))

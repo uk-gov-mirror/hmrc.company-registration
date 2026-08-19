@@ -24,6 +24,7 @@ import models.api.BusinessAddress
 import models.validation.MongoValidation
 import org.mongodb.scala.bson.conversions.Bson
 import org.mongodb.scala.model.Filters
+import org.mongodb.scala.model.Projections
 import org.mongodb.scala.result.{InsertOneResult, UpdateResult}
 import org.scalatest.Assertion
 import play.api.Application
@@ -36,6 +37,7 @@ import test.fixtures.CorporationTaxRegistrationFixture.ctRegistrationJson
 import test.itutil.ItTestConstants.CorporationTaxRegistration.corpTaxRegModel
 import test.itutil.ItTestConstants.TakeoverDetails.{testTakeoverDetails, testTakeoverDetailsModel}
 import test.itutil.{IntegrationSpecBase, MongoIntegrationSpec}
+import org.bson.{BsonType, Document}
 
 import java.time.temporal.ChronoUnit
 import java.time.{Instant, LocalDate, LocalDateTime, ZoneOffset}
@@ -1761,6 +1763,124 @@ class CorporationTaxRegistrationMongoRepositoryISpec
           "acknowledged" -> 3,
         )
       }
+    }
+  }
+
+  "createdTime index and legacy cleanup" must {
+    "create a TTL index on createdTime for 180 days" in new Setup {
+      val indexDocs = await(repository.collection.withDocumentClass[Document]().listIndexes().toFuture())
+      val maybeTtl = indexDocs.find(_.getString("name") == "createdTimeExpiry")
+
+      maybeTtl mustBe defined
+      val ttl = maybeTtl.get
+        .get("expireAfterSeconds")
+        .get
+        .asNumber()
+        .longValue()
+
+      ttl mustBe 180L * 24 * 60 * 60
+    }
+
+    "persist createdTime as BSON DateTime for new documents" in new Setup {
+      val regId = UUID.randomUUID().toString
+      val createdTs = Instant.now().truncatedTo(ChronoUnit.MILLIS)
+
+      val doc = newCTDoc.copy(registrationID = regId, createdTime = createdTs, lastSignedIn = createdTs)
+      insert(doc)
+
+      val rawDoc = await(
+        repository.collection
+          .withDocumentClass[Document]()
+          .find(Filters.equal("registrationID", regId))
+          .projection(Projections.include("createdTime"))
+          .first()
+          .toFutureOption()
+      )
+
+      rawDoc mustBe defined
+      rawDoc.get.getDate("createdTime").toInstant mustBe createdTs
+    }
+
+    "read legacy createdTime stored as NumberLong" in new Setup {
+      val regId = UUID.randomUUID().toString
+      val createdTs = Instant.now().minus(200, ChronoUnit.DAYS).truncatedTo(ChronoUnit.MILLIS)
+
+      val legacyRaw = ctRegistrationJson(
+        regId = regId,
+        createdTime = createdTs.toEpochMilli
+      )
+
+      repository.insertRaw(legacyRaw)
+
+      val fetched = await(repository.findOneBySelector(repository.regIDSelector(regId)))
+      fetched mustBe defined
+      fetched.get.createdTime mustBe createdTs
+    }
+
+    "delete only stale legacy INT64 createdTime records up to N limit" in new Setup {
+      val staleTs = Instant.now().minus(181, ChronoUnit.DAYS).toEpochMilli
+      val freshTs = Instant.now().minus(10, ChronoUnit.DAYS).toEpochMilli
+
+      val staleLegacy1 = ctRegistrationJson(regId = UUID.randomUUID().toString, createdTime = staleTs)
+      val staleLegacy2 = ctRegistrationJson(regId = UUID.randomUUID().toString, createdTime = staleTs)
+      val freshLegacy = ctRegistrationJson(regId = UUID.randomUUID().toString, createdTime = freshTs)
+
+      repository.insertRaw(staleLegacy1)
+      repository.insertRaw(staleLegacy2)
+      repository.insertRaw(freshLegacy)
+
+      insert(newCTDoc.copy(registrationID = UUID.randomUUID().toString, createdTime = Instant.now().minus(181, ChronoUnit.DAYS)))
+
+      await(repository.deleteNStaleLegacyCreatedTimeData(1)).getDeletedCount mustBe 1L
+
+      val staleLegacyCountAfter = await(
+        repository.collection
+          .withDocumentClass[Document]()
+          .countDocuments(
+            Filters.and(
+              Filters.`type`("createdTime", BsonType.INT64),
+              Filters.lt("createdTime", staleTs + 1) // still stale
+            )
+          ).toFuture()
+      )
+
+      staleLegacyCountAfter mustBe 1L
+    }
+
+    "not delete anything when deleteNStaleLegacyCreatedTimeData limit is <= 0" in new Setup {
+      val staleTs = Instant.now().minus(181, ChronoUnit.DAYS).toEpochMilli
+      repository.insertRaw(ctRegistrationJson(regId = UUID.randomUUID().toString, createdTime = staleTs))
+
+      await(repository.deleteNStaleLegacyCreatedTimeData(0)).getDeletedCount mustBe 0L
+      await(repository.deleteNStaleLegacyCreatedTimeData(-1)).getDeletedCount mustBe 0L
+    }
+
+    "delete all stale legacy INT64 records in batches and keep non-target records" in new Setup {
+      val staleTs = Instant.now().minus(181, ChronoUnit.DAYS).toEpochMilli
+      val freshTs = Instant.now().minus(5, ChronoUnit.DAYS).toEpochMilli
+
+      (1 to 25).foreach { _ =>
+        repository.insertRaw(ctRegistrationJson(regId = UUID.randomUUID().toString, createdTime = staleTs))
+      }
+
+      repository.insertRaw(ctRegistrationJson(regId = UUID.randomUUID().toString, createdTime = freshTs)) // fresh INT64
+      insert(newCTDoc.copy(registrationID = UUID.randomUUID().toString, createdTime = Instant.now().minus(181, ChronoUnit.DAYS))) // DateTime
+
+      val totalDeleted = await(repository.deleteAllStaleLegacyCreatedTimeData(batchSize = 10))
+      totalDeleted mustBe 25L
+
+      val remainingStaleLegacy = await(
+        repository.collection
+          .withDocumentClass[Document]()
+          .countDocuments(
+            Filters.and(
+              Filters.`type`("createdTime", BsonType.INT64),
+              Filters.lt("createdTime", Instant.now().minus(180, ChronoUnit.DAYS).toEpochMilli)
+            )
+          ).toFuture()
+      )
+
+      remainingStaleLegacy mustBe 0L
     }
   }
 }
