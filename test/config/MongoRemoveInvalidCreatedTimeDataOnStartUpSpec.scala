@@ -88,7 +88,7 @@ class MongoRemoveInvalidCreatedTimeDataOnStartUpSpec
       }
     }
 
-    "call deleteNDataWithCreatedTimeStringType" when {
+    "call deleteNStaleLegacyCreatedTimeData (INT64 createdTime)" when {
       "deleteNInvalidCreatedTimeData is enabled and limit is positive" in {
         when(mockCleanupConfig.deleteAllInvalidCreatedTimeData).thenReturn(false)
         when(mockCleanupConfig.deleteNInvalidCreatedTimeData).thenReturn(true)
@@ -103,17 +103,17 @@ class MongoRemoveInvalidCreatedTimeDataOnStartUpSpec
       }
     }
 
-    "call deleteAllDataWithCreatedTimeStringType" when {
+    "call deleteAllStaleLegacyCreatedTimeData (INT64 createdTime)" when {
       "deleteAllInvalidCreatedTimeData is enabled and deleteNInvalidCreatedTimeData is disabled" in {
         when(mockCleanupConfig.deleteAllInvalidCreatedTimeData).thenReturn(true)
         when(mockCleanupConfig.deleteNInvalidCreatedTimeData).thenReturn(false)
         when(mockCleanupConfig.limitForDeletingInvalidCreatedTimeData).thenReturn(1)
-        when(mockCtrRepository.deleteNStaleLegacyCreatedTimeData(0))
-          .thenReturn(Future.successful(DeleteResult.acknowledged(100)))
+        when(mockCtrRepository.deleteAllStaleLegacyCreatedTimeData())
+          .thenReturn(Future.successful(100))
 
         new TestStartUpJob().deleteInvalidData()
 
-        verify(mockCtrRepository, times(1)).deleteAllStaleLegacyCreatedTimeData()
+        verify(mockCtrRepository, atLeastOnce()).deleteAllStaleLegacyCreatedTimeData()
         verify(mockCtrRepository, never()).deleteNStaleLegacyCreatedTimeData(anyInt())
       }
     }
