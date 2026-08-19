@@ -69,6 +69,7 @@ class CorporationTaxRegistrationMongoRepositoryISpec
       repository.insert(reg)
       count mustBe currentCount + 1
     }
+
     def insertMultiple(reg: Seq[CorporationTaxRegistration]): Assertion = {
       val currentCount = count
       repository.insertMany(reg)
@@ -749,7 +750,7 @@ class CorporationTaxRegistrationMongoRepositoryISpec
     }
     "return Some(regId, InternalId) when ct doc exists" in new Setup {
       insert(newCTDoc)
-      await(repository.getInternalId(registrationId)) mustBe(newCTDoc.registrationID -> newCTDoc.internalId)
+      await(repository.getInternalId(registrationId)) mustBe (newCTDoc.registrationID -> newCTDoc.internalId)
     }
   }
 
@@ -1762,5 +1763,4 @@ class CorporationTaxRegistrationMongoRepositoryISpec
       }
     }
   }
-
 }

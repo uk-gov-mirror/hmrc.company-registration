@@ -21,7 +21,6 @@ import cats.data.OptionT
 import cats.implicits._
 import models._
 import models.validation.MongoValidation
-import org.mongodb.scala.bson.BsonDocument
 import org.mongodb.scala.bson.conversions.Bson
 import org.mongodb.scala.model.Filters.{equal, lte}
 import org.mongodb.scala.model.Indexes.ascending
@@ -31,10 +30,14 @@ import org.mongodb.scala.result.UpdateResult
 import play.api.libs.json._
 import uk.gov.hmrc.mongo.MongoComponent
 import uk.gov.hmrc.mongo.play.json.{Codecs, PlayMongoRepository}
+import com.mongodb.client.result.DeleteResult
+import org.bson.{BsonType, Document}
+import org.mongodb.scala.model.Projections.include
 import utils.Logging
 
 import java.time.temporal.ChronoUnit
 import java.time.{Instant, LocalDateTime, ZoneOffset}
+import java.util.concurrent.TimeUnit
 import javax.inject.{Inject, Singleton}
 import scala.concurrent.{ExecutionContext, Future}
 import scala.util.control.NoStackTrace
@@ -84,6 +87,12 @@ class CorporationTaxRegistrationMongoRepository @Inject()(val mongo: MongoCompon
           .name("LastSignedInIndex")
           .unique(false)
           .sparse(false)
+      ),
+      IndexModel(
+        ascending("createdTime"),
+        IndexOptions()
+          .name("createdTimeExpiry")
+          .expireAfter(180L, TimeUnit.DAYS)
       )
     ),
     extraCodecs = Seq(
@@ -108,7 +117,7 @@ class CorporationTaxRegistrationMongoRepository @Inject()(val mongo: MongoCompon
       modifier,
       FindOneAndUpdateOptions()
         .upsert(false)
-        .returnDocument(if(fetchNewObject) ReturnDocument.AFTER else ReturnDocument.BEFORE)
+        .returnDocument(if (fetchNewObject) ReturnDocument.AFTER else ReturnDocument.BEFORE)
     ).headOption()
 
   def update(selector: Bson, key: String, value: JsValue): Future[UpdateResult] =
@@ -131,7 +140,7 @@ class CorporationTaxRegistrationMongoRepository @Inject()(val mongo: MongoCompon
   def unsetFields(selector: Bson, fields: String*): Future[UpdateResult] =
     collection.updateOne(
       selector,
-      Updates.combine(fields.map(unset):_*),
+      Updates.combine(fields.map(unset): _*),
       UpdateOptions().upsert(false)
     ).toFuture()
 
@@ -379,7 +388,9 @@ class CorporationTaxRegistrationMongoRepository @Inject()(val mongo: MongoCompon
     ))
 
   def retrieveLockedRegIDs(): Future[Seq[String]] =
-    findAllBySelector(equal("status", RegistrationStatus.LOCKED)).map { _.map(_.registrationID) }
+    findAllBySelector(equal("status", RegistrationStatus.LOCKED)).map {
+      _.map(_.registrationID)
+    }
 
   def retrieveStatusAndExistenceOfCTUTR(ackRef: String): Future[Option[(String, Boolean)]] = {
     for {
@@ -412,7 +423,9 @@ class CorporationTaxRegistrationMongoRepository @Inject()(val mongo: MongoCompon
     val json = Json.toJson(
       SessionIds(sessionId.format(crypto), credId))(SessionIds.format(crypto)
     )
-    update(regIDSelector(regId), "sessionIdentifiers", json) map { _.getModifiedCount == 1 }
+    update(regIDSelector(regId), "sessionIdentifiers", json) map {
+      _.getModifiedCount == 1
+    }
   }
 
   def retrieveSessionIdentifiers(regId: String): Future[Option[SessionIds]] = {
@@ -426,7 +439,7 @@ class CorporationTaxRegistrationMongoRepository @Inject()(val mongo: MongoCompon
     val query = Filters.and(
       Filters.in("status", "draft", "held", "locked"),
       Filters.exists("confirmationReferences.payment-reference", exists = false),
-      Filters.lt("lastSignedIn", LocalDateTime.now(ZoneOffset.UTC).withHour(0).minusDays(storageThreshold).toInstant(ZoneOffset.UTC).toEpochMilli),
+      Filters.lt("lastSignedIn", LocalDateTime.now(ZoneOffset.UTC).withHour(0).minusDays(storageThreshold).toInstant(ZoneOffset.UTC)),
       Filters.or(
         Filters.exists("heldTimestamp", exists = false),
         Filters.lt("heldTimestamp", LocalDateTime.now(ZoneOffset.UTC).withHour(0).minusDays(storageThreshold).toInstant(ZoneOffset.UTC).toEpochMilli)
@@ -449,5 +462,70 @@ class CorporationTaxRegistrationMongoRepository @Inject()(val mongo: MongoCompon
       }
       .toFuture()
       .map(_.flatten)
+  }
+
+  private val CreatedTimeTtlDays: Long = 180
+
+  private def staleLegacyCreatedTimeFilter: Bson = {
+    val cutoff = Instant.now()
+      .minus(CreatedTimeTtlDays, ChronoUnit.DAYS)
+      .toEpochMilli
+
+      Filters.and(
+        Filters.`type`("createdTime", BsonType.INT64),
+        Filters.lt("createdTime", cutoff)
+      )
+  }
+
+  private def errorMessage(e: Throwable, allOrN: String): String =
+    s"[MongoRemoveInvalidCreatedTimeData][delete${allOrN}StaleLegacyCreatedTimeData] " +
+      s"Deletion of stale legacy 'createdTime' data failed. Error: $e"
+
+  def deleteNStaleLegacyCreatedTimeData(nLimitForDeletion: Int): Future[DeleteResult] =
+    if (nLimitForDeletion <= 0) {
+      Future.successful(DeleteResult.acknowledged(0))
+    } else {
+      val filter = staleLegacyCreatedTimeFilter
+      collection
+        .withDocumentClass[Document]()
+        .find(filter)
+        .projection(include("_id"))
+        .limit(nLimitForDeletion)
+        .toFuture()
+        .flatMap { documents =>
+          val ids = documents.map(_.getObjectId("_id"))
+          if (ids.isEmpty) {
+            logger.warn("[MongoRemoveInvalidCreatedTimeData][deleteNStaleLegacyCreatedTimeData] " +
+              "No stale legacy documents found.")
+            Future.successful(DeleteResult.acknowledged(0))
+          } else {
+            collection
+              .deleteMany(Filters.and(Filters.in("_id", ids: _*), filter))
+              .toFuture()
+              .map { result =>
+                logger.warn("[MongoRemoveInvalidCreatedTimeData][deleteNStaleLegacyCreatedTimeData] " +
+                  s"Number of DELETED stale documents: ${result.getDeletedCount}, limit: $nLimitForDeletion")
+                result
+              }
+          }
+        }
+    }
+
+  def deleteAllStaleLegacyCreatedTimeData(batchSize: Int = 1000): Future[Long] = {
+    def loop(total: Long): Future[Long] =
+      deleteNStaleLegacyCreatedTimeData(batchSize).flatMap { result =>
+        val deleted = result.getDeletedCount
+        if (deleted <= 0) Future.successful(total) else loop(total + deleted)
+      }
+
+    loop(0L).map { total =>
+      logger.warn("[MongoRemoveInvalidCreatedTimeData][deleteAllStaleLegacyCreatedTimeData] " +
+        s"Total DELETED stale documents: $total")
+      total
+    }
+      .recover { case e: Throwable =>
+        logger.error(errorMessage(e, "All"))
+        0L
+      }
   }
 }

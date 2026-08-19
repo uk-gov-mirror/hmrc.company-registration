@@ -20,8 +20,10 @@ import auth.CryptoSCRS
 import models.validation.{APIValidation, BaseJsonFormatting, MongoValidation}
 import play.api.libs.functional.syntax._
 import play.api.libs.json._
+import uk.gov.hmrc.mongo.play.json.formats.MongoJavatimeFormats
 
 import java.time.{Instant, LocalDate}
+import scala.util.Try
 
 object RegistrationStatus {
   val DRAFT = "draft"
@@ -63,11 +65,19 @@ object CorporationTaxRegistration {
   def now: Instant = Instant.now()
 
   implicit val timestampFormat: Format[Instant] = new Format[Instant] {
-    override def reads(json: JsValue): JsResult[Instant] = json match {
-      case n: JsNumber => n.validate[Long].map(Instant.ofEpochMilli)
-      case s => s.validate[String].map(Instant.parse)
+    override def reads(json: JsValue): JsResult[Instant] =
+      MongoJavatimeFormats.instantFormat.reads(json) match {
+        case success: JsSuccess[Instant] => success
+
+        case _: JsError => json match {
+            case JsNumber(n) => JsSuccess(Instant.ofEpochMilli(n.toLong))
+
+            case JsString(value) => Try(Instant.parse(value)).map(JsSuccess(_)).getOrElse(JsError("Invalid timestamp"))
+
+        case _ => JsError("Invalid timestamp")
+      }
     }
-    override def writes(o: Instant): JsValue = JsNumber(o.toEpochMilli)
+    override def writes(o: Instant): JsValue = MongoJavatimeFormats.instantFormat.writes(o)
   }
 
   def format(formatter: BaseJsonFormatting, cryptoSCRS: CryptoSCRS): Format[CorporationTaxRegistration] = {
