@@ -1858,15 +1858,15 @@ class CorporationTaxRegistrationMongoRepositoryISpec
     "delete all stale legacy INT64 records in batches and keep non-target records" in new Setup {
       val staleTs = Instant.now().minus(181, ChronoUnit.DAYS).toEpochMilli
       val freshTs = Instant.now().minus(5, ChronoUnit.DAYS).toEpochMilli
+      val freshRegId = UUID.randomUUID().toString
 
       (1 to 25).foreach { _ =>
         repository.insertRaw(ctRegistrationJson(regId = UUID.randomUUID().toString, createdTime = staleTs))
       }
 
-      repository.insertRaw(ctRegistrationJson(regId = UUID.randomUUID().toString, createdTime = freshTs)) // fresh INT64
-      insert(newCTDoc.copy(registrationID = UUID.randomUUID().toString, createdTime = Instant.now().minus(181, ChronoUnit.DAYS))) // DateTime
+      repository.insertRaw(ctRegistrationJson(regId = freshRegId, createdTime = freshTs))
 
-      val totalDeleted = await(repository.deleteAllStaleLegacyCreatedTimeData(batchSize = 10))
+      val totalDeleted = await(repository.deleteAllStaleLegacyCreatedTimeData())
       totalDeleted mustBe 25L
 
       val remainingStaleLegacy = await(
@@ -1881,6 +1881,18 @@ class CorporationTaxRegistrationMongoRepositoryISpec
       )
 
       remainingStaleLegacy mustBe 0L
+
+      val remainingFreshLegacy = await(
+        repository.collection
+          .withDocumentClass[Document]()
+          .countDocuments(
+            Filters.and(
+              Filters.equal("registrationID", freshRegId),
+            )
+          ).toFuture()
+      )
+
+      remainingFreshLegacy mustBe 1L
     }
   }
 }

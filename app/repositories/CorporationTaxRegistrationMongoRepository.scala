@@ -31,6 +31,7 @@ import play.api.libs.json._
 import uk.gov.hmrc.mongo.MongoComponent
 import uk.gov.hmrc.mongo.play.json.{Codecs, PlayMongoRepository}
 import com.mongodb.client.result.DeleteResult
+import config.MicroserviceAppConfig
 import org.bson.{BsonType, Document}
 import org.mongodb.scala.model.Projections.include
 import utils.Logging
@@ -46,7 +47,8 @@ class MissingCTDocument(regId: String) extends NoStackTrace
 
 @Singleton
 class CorporationTaxRegistrationMongoRepository @Inject()(val mongo: MongoComponent,
-                                                          crypto: CryptoSCRS
+                                                          crypto: CryptoSCRS,
+                                                          config: MicroserviceAppConfig
                                                          )(implicit val executionContext: ExecutionContext)
   extends PlayMongoRepository[CorporationTaxRegistration](
     mongoComponent = mongo,
@@ -92,7 +94,7 @@ class CorporationTaxRegistrationMongoRepository @Inject()(val mongo: MongoCompon
         ascending("createdTime"),
         IndexOptions()
           .name("createdTimeExpiry")
-          .expireAfter(180L, TimeUnit.DAYS)
+          .expireAfter(config.createdTimeExpiry.toSeconds, TimeUnit.SECONDS)
       )
     ),
     extraCodecs = Seq(
@@ -464,11 +466,9 @@ class CorporationTaxRegistrationMongoRepository @Inject()(val mongo: MongoCompon
       .map(_.flatten)
   }
 
-  private val CreatedTimeTtlDays: Long = 180
-
   private def staleLegacyCreatedTimeFilter: Bson = {
     val cutoff = Instant.now()
-      .minus(CreatedTimeTtlDays, ChronoUnit.DAYS)
+      .minus(config.createdTimeExpiry.toDays, ChronoUnit.DAYS)
       .toEpochMilli
 
       Filters.and(
@@ -511,21 +511,19 @@ class CorporationTaxRegistrationMongoRepository @Inject()(val mongo: MongoCompon
         }
     }
 
-  def deleteAllStaleLegacyCreatedTimeData(batchSize: Int = 1000): Future[Long] = {
-    def loop(total: Long): Future[Long] =
-      deleteNStaleLegacyCreatedTimeData(batchSize).flatMap { result =>
-        val deleted = result.getDeletedCount
-        if (deleted <= 0) Future.successful(total) else loop(total + deleted)
+  def deleteAllStaleLegacyCreatedTimeData(): Future[Long] =
+    collection
+      .deleteMany(staleLegacyCreatedTimeFilter)
+      .toFuture()
+      .map { result =>
+        logger.warn(
+          "[MongoRemoveInvalidCreatedTimeData][deleteAllStaleLegacyCreatedTimeData] " +
+            s"Total DELETED stale documents: ${result.getDeletedCount}"
+        )
+        result.getDeletedCount
       }
-
-    loop(0L).map { total =>
-      logger.warn("[MongoRemoveInvalidCreatedTimeData][deleteAllStaleLegacyCreatedTimeData] " +
-        s"Total DELETED stale documents: $total")
-      total
-    }
       .recover { case e: Throwable =>
         logger.error(errorMessage(e, "All"))
         0L
       }
-  }
 }

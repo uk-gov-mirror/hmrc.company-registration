@@ -17,6 +17,7 @@
 package config
 
 import play.api.Configuration
+
 import javax.inject.{Inject, Singleton}
 
 @Singleton
@@ -30,4 +31,5 @@ class CreatedTimeDataCleanupConfig @Inject()(config: Configuration) {
 
   lazy val limitForDeletingInvalidCreatedTimeData: Int =
     config.getOptional[Int]("features.limit-for-deleting-invalid-createdTime-data").getOrElse(1)
+
 }

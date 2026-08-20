@@ -26,6 +26,7 @@ import play.api.libs.json.Json
 
 import java.nio.charset.StandardCharsets
 import java.util.Base64
+import scala.concurrent.duration.{DurationInt, FiniteDuration}
 
 @Singleton
 class MicroserviceAppConfig @Inject()(servicesConfig: ServicesConfig, configuration: Configuration) {
@@ -49,4 +50,5 @@ class MicroserviceAppConfig @Inject()(servicesConfig: ServicesConfig, configurat
   lazy val hipClientSecret: String = servicesConfig.getString("microservice.services.hip.clientSecret")
   lazy val hipAuthToken: String    = Base64.getEncoder.encodeToString(s"$hipClientId:$hipClientSecret".getBytes(StandardCharsets.UTF_8))
   lazy val apiRoute: String        = if (useHip) "HIP" else "DES"
+  lazy val createdTimeExpiry: FiniteDuration = configuration.getOptional[FiniteDuration]("features.created-time-expiry").getOrElse(180.days)
 }
